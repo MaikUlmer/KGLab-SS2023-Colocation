@@ -1,1 +1,4 @@
-# do nothing
+#!/bin/bash
+# WF 2023-04-21
+# install
+pip install .
