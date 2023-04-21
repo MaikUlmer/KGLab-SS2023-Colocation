@@ -1,0 +1,15 @@
+#/bin/bash
+# WF 2023-02-14
+# Run tests with green
+greentests() {
+  pip list | grep green | grep -v greenlet
+  if [ $? -ne 0 ]
+  then
+    pip install green
+  fi
+
+  green tests -s 1
+}
+
+greentests
+#python -m unittest discover
