@@ -51,7 +51,7 @@ class JsonCacheManager():
         json_path=self.json_path(lod_name)
         if os.path.isfile(json_path):
             try:
-                with open(json_path) as json_file:
+                with open(json_path, encoding="utf8") as json_file:
                     json_str = json_file.read()
                     lod = orjson.loads(json_str)
             except Exception as e:
