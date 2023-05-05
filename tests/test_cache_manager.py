@@ -28,7 +28,7 @@ class TestMatcher(unittest.TestCase):
         """
         cacher = JsonCacheManager()
         self.assertTrue(cacher is not None)
-        self.assertEqual(cacher.base_url, "http://cvb.bitplan.com/volumes.json")
+        self.assertEqual(cacher.base_url, "http://cvb.bitplan.com")
 
         lod_name = "CeurWSVolumes"
         lod = cacher.load_lod(lod_name)

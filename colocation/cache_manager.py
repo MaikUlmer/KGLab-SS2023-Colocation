@@ -14,12 +14,12 @@ class JsonCacheManager():
     """
     cache json based volume information
     """
-    def __init__(self, base_url:str = "http://cvb.bitplan.com/volumes.json"):
+    def __init__(self, base_url:str = "http://cvb.bitplan.com"):
         """
         constructor
 
         Args:
-            base_url(str): url to json provider
+            base_url(str): base url of json provider
         """ 
         self.base_url = base_url
 
@@ -60,7 +60,7 @@ class JsonCacheManager():
 
         else:
             try:
-                url = self.base_url
+                url = f'{self.base_url}/{lod_name}.json'
                 with urllib.request.urlopen(url) as source:
                     json_str = source.read()
                     lod = orjson.loads(json_str)
