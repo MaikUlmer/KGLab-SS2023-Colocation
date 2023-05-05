@@ -30,12 +30,12 @@ class TestMatcher(unittest.TestCase):
         self.assertTrue(cacher is not None)
         self.assertEqual(cacher.base_url, "http://cvb.bitplan.com")
 
-        lod_name = "CeurWSVolumes"
+        lod_name = "volumes"
         lod = cacher.load_lod(lod_name)
         self.assertTrue(lod)
 
         cacher.store_lod(lod_name, lod)
-        self.assertTrue(os.path.isfile(f"{Path.home()}/.ceurws/CeurWSVolumes.json"))
+        self.assertTrue(os.path.isfile(f"{Path.home()}/.ceurws/volumes.json"))
         
         pass
 
