@@ -59,14 +59,7 @@ class JsonCacheManager():
                 raise Exception(msg)
 
         else:
-            try:
-                url = f'{self.base_url}/{lod_name}.json'
-                with urllib.request.urlopen(url) as source:
-                    json_str = source.read()
-                    lod = orjson.loads(json_str)
-            except Exception as e:
-                msg=f"Could not read {lod_name} from source {url} due to {str(e)}"
-                raise Exception(msg)
+            lod = self.reload_lod(lod_name)
         return lod
     
     def store_lod(self, lod_name:str, lod:list):
@@ -82,3 +75,23 @@ class JsonCacheManager():
             json_str = orjson.dumps(lod)
             json_file.write(json_str)
             pass
+
+    def reload_lod(self, lod_name:str)->list:
+        """
+        forces load from url and may overwrite local copy
+
+        Args:
+            lod_name(str): name of the list of dicts to reload
+        
+        Returns:
+            list: the reloaded list of dicts
+        """
+        json_path=self.json_path(lod_name)
+        try:
+            url = f'{self.base_url}/{lod_name}.json'
+            with urllib.request.urlopen(url) as source:
+                json_str = source.read()
+                lod = orjson.loads(json_str)
+        except Exception as e:
+            msg=f"Could not read {lod_name} from source {url} due to {str(e)}"
+            raise Exception(msg)
