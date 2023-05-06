@@ -7,10 +7,12 @@ build-backend = "hatchling.build"
 [project]
 name = "colocation"
 authors = [
-  {name = "Maik Ulmer", email = "maik.ulmer@rwth-aachen.de"}
+  {name = "Maik Ulmer", email = "maik.ulmer@rwth-aachen.de"},
+  {name = "Niklas Molczanski", email = "niklas.molczanski@rwth-aachen.de"},
 ]
 maintainers = [
   { name = "Maik Ulmer", email = "maik.ulmer@rwth-aachen.de" },
+  {name = "Niklas Molczanski", email = "niklas.molczanski@rwth-aachen.de"},
 ]
 readme = "README.md"
 license= "Apache-2.0"
