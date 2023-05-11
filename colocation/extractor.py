@@ -7,7 +7,9 @@ class ColocationExtractor():
     Given a list of dicts, searches for "co-located" information. 
     """
 
-    def __init__(self, volumes_lod:list, proc_provider:JsonCacheManager = JsonCacheManager(base_url="http://ceurspt.wikidata.dbis.rwth-aachen.de")):
+    def __init__(self, volumes_lod:list,
+                proc_provider:JsonCacheManager = JsonCacheManager(),
+                extra_provider:JsonCacheManager = JsonCacheManager(base_url="http://ceurspt.wikidata.dbis.rwth-aachen.de")):
         """
         constructor
         Automatically extracts the information of the passed list of dicts.
@@ -16,11 +18,16 @@ class ColocationExtractor():
             volumes_lod(list): list of dict for the volumes to extract information from.
             proc_provider(JsonCacheManager): loader for additional volume information,
                 should only be changed for test purposes.
+            extra_provider(JsonCacheManager): loader for volume information not present in proc_provider,
+                should only be changed for test purposes.
         """
 
         procs = "proceedings"
-        self.proc_provider = proc_provider
+
+        self.extra_provider = extra_provider
+
         self.ceurWSProcs = proc_provider.load_lod(procs)
+
 
         self.volumes_lod = volumes_lod
         self.extract_info()
@@ -58,7 +65,7 @@ class ColocationExtractor():
                 uri = str(proceedings_map[volume["number"]]).split("|")
             else:
                 vol_name = f'Vol-{volume["number"]}'
-                vol = self.proc_provider.load_lod(vol_name)
+                vol = self.extra_provider.load_lod(vol_name)
 
                 if "wd.event" in vol.keys():
                     uri = str(vol["wd.event"]).split("|")

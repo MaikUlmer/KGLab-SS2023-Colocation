@@ -331,7 +331,7 @@ class TestMatcher(unittest.TestCase):
         test extractor on handpicked data
         """
         dummytester = DummyCacheManager()
-        extractor = ColocationExtractor(test_volumes, dummytester)
+        extractor = ColocationExtractor(test_volumes, dummytester, dummytester)
         self.assertTrue(extractor)
         self.assertListEqual(extractor.get_colocation_info(), expected_result)
         self.assertListEqual(extractor.missing_events, expected_missing)
