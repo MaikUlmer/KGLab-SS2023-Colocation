@@ -60,6 +60,7 @@ class JsonCacheManager():
 
         else:
             lod = self.reload_lod(lod_name)
+            self.store_lod(lod_name, lod)
         return lod
     
     def store_lod(self, lod_name:str, lod:list):
