@@ -21,7 +21,6 @@ class ColocationExtractor():
         procs = "proceedings"
         self.proc_provider = proc_provider
         self.ceurWSProcs = proc_provider.load_lod(procs)
-        proc_provider.store_lod("proceedings", self.ceurWSProcs)
 
         self.volumes_lod = volumes_lod
         self.extract_info()
@@ -60,7 +59,6 @@ class ColocationExtractor():
             else:
                 vol_name = f'Vol-{volume["number"]}'
                 vol = self.proc_provider.load_lod(vol_name)
-                self.proc_provider.store_lod(vol_name, vol)
 
                 if "wd.event" in vol.keys():
                     uri = str(vol["wd.event"]).split("|")
