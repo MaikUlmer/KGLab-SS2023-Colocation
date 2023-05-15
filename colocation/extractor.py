@@ -84,7 +84,7 @@ class ColocationExtractor():
         """
         colocation_lod = []
 
-        matchtypes = ["coloc", "@", "at", "conjunction", "@2"]
+        matchtypes = ["coloc", "@", "at", "conjunction", "@2", "aff"]
         matchregexes = {}
 
         matchregexes[matchtypes[0]] = re.compile(
@@ -101,6 +101,9 @@ class ColocationExtractor():
         )
         matchregexes[matchtypes[4]] = re.compile(
             "(\w* @ .*)"
+        )
+        matchregexes[matchtypes[5]] = re.compile(
+            "affiliated with"
         )
         
         for volume in self.volumes_lod:
