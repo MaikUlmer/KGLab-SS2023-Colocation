@@ -83,33 +83,38 @@ class ColocationExtractor():
         it within a list of dicts
         """
         colocation_lod = []
-        regex = re.compile(
+
+        matchtypes = ["extracted", "extracted@"]
+        matchregexes = {}
+
+        matchregexes[matchtypes[0]] = re.compile(
             "(co-located|colocated) with (?P<colocation>.*)"
         )
-        at_regex = re.compile(
+        matchregexes[matchtypes[1]] = re.compile(
             "(\w*@.*)"
         )
         
         for volume in self.volumes_lod:
-            volume_matches =[]
-            volume_at_matches =[]
-            
-            for _, value in volume.items():
-                result = re.search(regex, str(value))
-                if(result is not None):
-                    volume_matches.append(result["colocation"])
+            matches = {mt:[] for mt in matchtypes}
 
-                at_result = re.search(at_regex, str(value))
-                if(at_result is not None):
-                    volume_at_matches.append(at_result[0])
+            for _, value in volume.items():
+                
+                # use appropriate regex for each search type
+                for mt in matchtypes:
+                    result = re.search(matchregexes[mt], str(value))
+                    if(result is not None):
+                        matches[mt].append(result[0])
             
-            if volume["colocated"] or volume_matches or volume_at_matches:
+            # check for any posssible match
+            if volume["colocated"] or any([l for l in matches.values()]):
                 volume_dict = {}
                 volume_number = int(volume["number"])
                 volume_dict["number"] = volume_number
                 volume_dict["colocated"] = volume["colocated"]
-                volume_dict["extracted"] = volume_matches
-                volume_dict["extracted@"] = volume_at_matches
+
+                for mt in matchtypes:
+                    volume_dict[mt] = matches[mt]
+
 
                 colocation_lod.append(volume_dict)
 
