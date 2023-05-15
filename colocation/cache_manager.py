@@ -60,7 +60,6 @@ class JsonCacheManager():
 
         else:
             lod = self.reload_lod(lod_name)
-            self.store_lod(lod_name, lod)
         return lod
     
     def store_lod(self, lod_name:str, lod:list):
@@ -97,4 +96,5 @@ class JsonCacheManager():
             msg=f"Could not read {lod_name} from source {url} due to {str(e)}"
             raise Exception(msg)
 
+        self.store_lod(lod_name, lod)
         return lod
