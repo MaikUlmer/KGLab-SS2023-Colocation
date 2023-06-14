@@ -90,14 +90,14 @@ def get_wikidata_conferences(reload:bool=False)->pd.DataFrame:
     "title": "Conferences",
     "description": "Wikidata SPARQL query getting academic conferences with relevant information",
     "query": """
-SELECT distinct ?conference ?conferenceLabel ?short ?country ?location ?start ?end ?timepoint
+SELECT distinct ?conference ?conferenceLabel ?short ?countryLabel ?start ?end ?timepoint
 WHERE 
 {
   ?conference wdt:P31/wdt:P279* wd:Q2020153.
   SERVICE wikibase:label {bd:serviceParam wikibase:language "en". }
   OPTIONAL { ?conference wdt:P1813 ?short.}
   optional { ?conference wdt:P17 ?country.}
-  optional { ?conference wdt:P276 ?location.}
+  SERVICE wikibase:label {bd:serviceParam wikibase:language "en".} 
   optional { ?conference wdt:P580 ?start.}
   optional { ?conference wdt:P582 ?end.}
   optional { ?conference wdt:P585 ?timepoint.}
