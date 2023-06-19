@@ -22,6 +22,7 @@ class ColocationExtractor():
             extra_provider(JsonCacheManager): loader for volume information not present in proc_provider,
                 should only be changed for test purposes.
         """
+        self.matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
 
         procs = "proceedings"
 
@@ -85,7 +86,7 @@ class ColocationExtractor():
         """
         colocation_lod = []
 
-        matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
+        matchtypes = self.matchtypes
         matchregexes = {}
 
         matchregexes[matchtypes[0]] = re.compile(
