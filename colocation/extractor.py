@@ -1,4 +1,5 @@
-from colocation.cache_manager import JsonCacheManager
+from cache_manager import JsonCacheManager
+#from colocation.cache_manager import JsonCacheManager
 import re
 
 
@@ -88,7 +89,7 @@ class ColocationExtractor():
         matchregexes = {}
 
         matchregexes[matchtypes[0]] = re.compile(
-            "(co-located|colocated) with (?P<colocation>.*)"
+            "(?:(?:co-located|colocated) with) (.*)"
         )
         matchregexes[matchtypes[1]] = re.compile(
             "(\w*@.*)"
@@ -97,16 +98,16 @@ class ColocationExtractor():
             "(\w* at .*)"
         )
         matchregexes[matchtypes[3]] = re.compile(
-            "in conjunction with .*"
+            "(?:in conjunction with )(.*)"
         )
         matchregexes[matchtypes[4]] = re.compile(
             "(\w* @ .*)"
         )
         matchregexes[matchtypes[5]] = re.compile(
-            "affiliated with .*"
+            "(?:affiliated with )(.*)"
         )
         matchregexes[matchtypes[6]] = re.compile(
-            "hosted by .*"
+            "(?:hosted by )(.*)"
         )
         
         for volume in self.volumes_lod:
@@ -118,7 +119,7 @@ class ColocationExtractor():
                 for mt in matchtypes:
                     result = re.search(matchregexes[mt], str(value))
                     if(result is not None):
-                        matches[mt].append(result[0])
+                        matches[mt].append(result[1])
             
             # check for any posssible match
             if volume["colocated"] or any([l for l in matches.values()]):
@@ -126,6 +127,7 @@ class ColocationExtractor():
                 volume_number = int(volume["number"])
                 volume_dict["number"] = volume_number
                 volume_dict["colocated"] = volume["colocated"]
+                volume_dict["loctime"] = volume["loctime"]
 
                 for mt in matchtypes:
                     volume_dict[mt] = matches[mt]
