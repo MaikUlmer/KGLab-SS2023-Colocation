@@ -1,0 +1,49 @@
+Wikidate Query Service:https://query.wikidata.org/
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT ?conference ?conferenceLabel ?ShortName ?country ?countryLabel ?location ?locationLabel ?StartTime ?EndTime
+WHERE { ?conference wdt:P31 wd:Q2020153.
+        ?conference wdt:P1813 ?ShortName.
+        ?conference wdt:P17 ?country.
+        ?conference wdt:P276 ?location.
+        ?conference wdt:P580 ?StartTime.
+        ?conference wdt:P582 ?EndTime.
+       
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } 
+
+      }
+----------------------------------------------------------------------------------------------------------------------------------------------
+SELECT ?workshop ?workshopLabel ?ref_url ?ShortName ?country ?countryLabel ?location ?locationLabel ?StartTime ?EndTime 
+WHERE { ?workshop wdt:P31 wd:Q40444998.
+        ?workshop wdt:P1813 ?ShortName.
+        ?workshop wdt:P17 ?country.
+        ?workshop wdt:P276 ?location.
+        ?workshop wdt:P580 ?StartTime.
+        ?workshop wdt:P582 ?EndTime.
+        ?workshop p:P17 ?countryStatement.
+        ?countryStatement prov:wasDerivedFrom ?reference.
+        ?reference pr:P854 ?ref_url.
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }  
+    }
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT ?workshop ?workshopLabel ?ShortName ?country ?countryLabel ?location ?locationLabel ?StartTime ?EndTime ?ColocatedWithConf ?ColocatedWithConfLabel
+WHERE { ?workshop wdt:P31 wd:Q40444998.
+        ?workshop wdt:P1813 ?ShortName.
+        ?workshop wdt:P17 ?country.
+        ?workshop wdt:P276 ?location.
+        ?workshop wdt:P580 ?StartTime.
+        ?workshop wdt:P582 ?EndTime.
+        ?workshop wdt:P11633 ?ColocatedWithConf.
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } 
+      
+      
+      
+    }
+---------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT ?proceeding ?proceedingLabel ?ShortName ?Publishtime ?ConfOfproceeding ?ConfOfproceedingLabel
+WHERE { ?proceeding wdt:P31 wd:Q1143604.
+        ?proceeding wdt:P1813 ?ShortName.
+       ?proceeding wdt:P577 ?Publishtime.
+        ?proceeding wdt:P4745 ?ConfOfproceeding
+       
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }  
+    }
