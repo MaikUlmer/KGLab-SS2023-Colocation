@@ -28,7 +28,7 @@ class TestMatcher(unittest.TestCase):
         """
         conferences = get_wikidata_conferences(reload=True)
 
-        self.assertTrue(conferences)
+        self.assertTrue(conferences.any())
         self.assertIsInstance(conferences, pd.DataFrame)
         self.assertTrue(conferences.shape[0] > 0)
 
@@ -58,7 +58,7 @@ class TestMatcher(unittest.TestCase):
 
         workshops = get_wikidata_workshops(ids, name="colocated", reload=True)
 
-        self.assertTrue(workshops)
+        self.assertTrue(workshops.any())
         self.assertIsInstance(workshops, pd.DataFrame)
         self.assertTrue(workshops[0] > 0)
 
