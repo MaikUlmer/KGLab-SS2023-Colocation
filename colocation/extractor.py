@@ -3,6 +3,7 @@ from cache_manager import JsonCacheManager
 import re
 import pandas as pd
 import spacy
+import country_converter as coco
 
 
 class ColocationExtractor():
@@ -292,6 +293,14 @@ class ExtractionProcessor():
             return text.split(", ")[0:2]
         except IndexError:  # catch corner cases, where loctime attribute is not correctly formatted
             return None
+
+    def normalized_country(self, texts: list):
+        """
+        Apply country converter to locations and get ISO3 code
+        """
+        matches = coco.convert(texts, to="ISO3")
+        matches = [m for m in matches if m != "not found"]
+        return matches[0]
 
     def extract_time_and_place(self, df: pd.DataFrame, keyword: str) -> pd.DataFrame:
         """
