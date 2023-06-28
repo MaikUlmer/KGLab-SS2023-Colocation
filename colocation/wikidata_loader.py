@@ -54,7 +54,7 @@ def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) 
 SELECT distinct ?workshop ?workshopLabel ?short ?countryISO3 ?locationLabel ?start ?end ?timepoint
 WHERE
 {{
-  VALUES ?workshop {{{workshop_ids}}}.
+  VALUES ?workshop {{{" ".join(workshop_ids)}}}.
   ?workshop wdt:P31/wdt:P279* wd:Q40444998.
   SERVICE wikibase:label {{bd:serviceParam wikibase:language "en". }}
   OPTIONAL {{ ?workshop wdt:P1813 ?short.}}

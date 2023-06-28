@@ -6,6 +6,7 @@ Created on 2023-06-28
 import unittest
 import pandas as pd
 from colocation.cache_manager import JsonCacheManager
+from colocation.extractor import ColocationExtractor
 from colocation.wikidata_loader import get_wikidata_conferences
 from colocation.wikidata_loader import get_wikidata_workshops
 from colocation.wikidata_loader import get_workshop_ids_from_lod
@@ -17,7 +18,7 @@ class TestMatcher(unittest.TestCase):
     """
 
     def setUp(self):
-        pass
+        self.skipTest("Skip in CI environment")
 
     def tearDown(self):
         pass
@@ -28,7 +29,7 @@ class TestMatcher(unittest.TestCase):
         """
         conferences = get_wikidata_conferences(reload=True)
 
-        self.assertTrue(conferences.any())
+        self.assertTrue(conferences.any(axis=None))
         self.assertIsInstance(conferences, pd.DataFrame)
         self.assertTrue(conferences.shape[0] > 0)
 
@@ -44,9 +45,11 @@ class TestMatcher(unittest.TestCase):
         """
         cacher = JsonCacheManager()
         volumes = cacher.load_lod("volumes")
+        extractor = ColocationExtractor(volumes)
 
-        volumes = [vol for vol in volumes if vol["colocated"] is not None]
-        ids = get_workshop_ids_from_lod(volumes)
+        extract = extractor.get_colocation_info()
+        extract = [vol for vol in extract if vol["colocated"] is not None]
+        ids = get_workshop_ids_from_lod(extract)
 
         self.assertTrue(ids)
         self.assertIsInstance(ids, list)
@@ -58,9 +61,9 @@ class TestMatcher(unittest.TestCase):
 
         workshops = get_wikidata_workshops(ids, name="colocated", reload=True)
 
-        self.assertTrue(workshops.any())
+        self.assertTrue(workshops.any(axis=None))
         self.assertIsInstance(workshops, pd.DataFrame)
-        self.assertTrue(workshops[0] > 0)
+        self.assertTrue(workshops.shape[0] > 0)
 
         selected = ["workshop", "workshopLabel", "short", "countryISO3",
                     "locationLabel", "start", "end", "timepoint"]
