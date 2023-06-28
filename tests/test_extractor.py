@@ -6,6 +6,8 @@ Created on 2023-05-10
 import unittest
 from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor
+from colocation.extractor import ExtractionProcessor
+import pandas as pd
 
 test_procs = [
         {
@@ -239,6 +241,7 @@ vol1485 = {
     "cvb.vol_number": None
 }
 
+
 class DummyCacheManager(JsonCacheManager):
     """
     dummy cache manager to test the extractor
@@ -246,18 +249,18 @@ class DummyCacheManager(JsonCacheManager):
     def __init__(self):
         pass
 
-    def json_path(self, lod_name:str)->str:
+    def json_path(self, lod_name: str) -> str:
         pass
-    
-    def load_lod(self, lod_name:str)->list:
+
+    def load_lod(self, lod_name: str) -> list:
         if lod_name == "Vol-1485":
             return vol1485
         return test_procs
-    
-    def store_lod(self, lod_name:str, lod:list):
+
+    def store_lod(self, lod_name: str, lod: list):
         pass
 
-    def reload_lod(self, lod_name:str)->list:
+    def reload_lod(self, lod_name: str) -> list:
         pass
 
 
@@ -266,14 +269,11 @@ class TestMatcher(unittest.TestCase):
     test matching
     """
 
-
     def setUp(self):
         pass
 
-
     def tearDown(self):
         pass
-
 
     def testExtractor(self):
         """
@@ -285,7 +285,47 @@ class TestMatcher(unittest.TestCase):
         self.assertTrue(len(extractor.get_colocation_info()) == 3)
         self.assertTrue(len(extractor.missing_events) == 1)
 
+    def testLoctimeExtraction(self):
+        """
+        test that the Extraction processor correctly extracts from the provided lods
+        """
+        cacher = JsonCacheManager()
+        volumes = cacher.load_lod("volumes")
+
+        # check that the extractor generates colocation data
+        extractor = ColocationExtractor(volumes)
+        self.assertTrue(extractor)
+
+        colocation_lod = extractor.get_colocation_info()
+        self.assertTrue(colocation_lod)
+        self.assertIsInstance(colocation_lod, list)
+        self.assertTrue(len(colocation_lod) > 0)
+
+        for extract in colocation_lod:
+            self.assertTrue(extract)
+            self.assertIsInstance(extract, dict)
+
+        # check the data extraction
+        processor = ExtractionProcessor(colocation_lod)
+        self.assertTrue(processor)
+
+        df = processor.get_loctime_info("colocated")
+        self.assertIsInstance(df, pd.DataFrame)
+
+        length = df.shape[0]
+
+        # check if the dataframe has the correct columns
+        colums = ["number", "colocated", "title?", "short", "loctime",
+                  "year", "month", "locations"]
+        self.assertSetEqual(set(colums), set(df.columns))
+
+        # check if remove works
+        processor.remove_events_by_index([2,3])
+        df = processor.get_loctime_info("colocated")
+
+        self.assertEqual(df.shape[0] + 2, length)
+
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
