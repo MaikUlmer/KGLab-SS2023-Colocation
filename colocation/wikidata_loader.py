@@ -10,6 +10,22 @@ import pandas as pd
 from pathlib import Path
 
 
+def get_workshop_ids_from_lod(lod: list) -> list:
+    """
+    Takes a lod with wikidata_event keys and returns the
+    list of wikidata ids
+    Args:
+        lod(list(dict)): lod to extract workshop ids from 
+    """
+    found = [dici['wikidata_event'] for dici in lod]
+    found = [f for f in found if f is not None]
+    found = [event for events in found for event in events]
+    found = [str(event).split('/')[-1] for event in found]
+    found = found[0:1000]
+    found = ["wd:" + s for s in found]
+    return found
+
+
 def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all workshops from the given list of ids from Wikidata.
@@ -35,15 +51,15 @@ def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) 
     "title": "Workshops",
     "description": "Wikidata SPARQL query getting academic workshops with relevant information",
     "query": f"""
-SELECT distinct ?workshop ?workshopLabel ?short ?countryLabel ?locationLabel ?start ?end ?timepoint
-WHERE 
+SELECT distinct ?workshop ?workshopLabel ?short ?countryISO3 ?locationLabel ?start ?end ?timepoint
+WHERE
 {{
   VALUES ?workshop {{{workshop_ids}}}.
   ?workshop wdt:P31/wdt:P279* wd:Q40444998.
   SERVICE wikibase:label {{bd:serviceParam wikibase:language "en". }}
   OPTIONAL {{ ?workshop wdt:P1813 ?short.}}
   optional {{ ?workshop wdt:P17 ?country.
-           SERVICE wikibase:label {{bd:serviceParam wikibase:language "en".}} }}
+              ?country wdt:P298 ?countryISO3.}}
   optional {{ ?workshop wdt:P276 ?location.
            SERVICE wikibase:label {{bd:serviceParam wikibase:language "en".}} }}
   optional {{ ?workshop wdt:P580 ?start.}}
