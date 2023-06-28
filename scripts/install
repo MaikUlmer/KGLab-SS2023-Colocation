@@ -3,3 +3,4 @@
 # install
 pip install orjson
 pip install pandas
+pip install pylodstorage
