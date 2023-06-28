@@ -15,14 +15,18 @@ def get_workshop_ids_from_lod(lod: list) -> list:
     Takes a lod with wikidata_event keys and returns the
     list of wikidata ids
     Args:
-        lod(list(dict)): lod to extract workshop ids from 
+        lod(list(dict)): lod to extract workshop ids from
     """
+
+    # TODO handle wikidata not returning any result for certain ids
+
     found = [dici['wikidata_event'] for dici in lod]
     found = [f for f in found if f is not None]
     found = [event for events in found for event in events]
     found = [str(event).split('/')[-1] for event in found]
-    found = found[0:1000]
+    found = [s for s in found if s != "None"]
     found = ["wd:" + s for s in found]
+    found = found[0:1000]
     return found
 
 
@@ -81,6 +85,7 @@ WHERE
         return df
     except Exception as ex:
         print(f"{query.title} at {endpoint_url} failed: {ex}")
+        return Exception(ex)
 
 
 def get_wikidata_conferences(reload: bool = False) -> pd.DataFrame:
