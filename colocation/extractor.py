@@ -153,15 +153,16 @@ class ExtractionProcessor():
         self.month_regex = re.compile(
             "january|february|march|april|may|june|july|august|september|october|november|december", re.IGNORECASE)
 
-    def remove_events_by_index(self, indices: list):
-        """
-        Given a list of indices, removes the corresponding events from the
-        internal remaining events lod
-        Args:
-            indices(list[int]): indices of events to remove
-        """
-        for index in sorted(indices, reverse=True):
-            del self.remaining_events[index]
+    # this does not work because the dataframe indices are different from the overall lod
+    # def remove_events_by_index(self, indices: list):
+    #     """
+    #     Given a list of indices, removes the corresponding events from the
+    #     internal remaining events lod
+    #     Args:
+    #         indices(list[int]): indices of events to remove
+    #     """
+    #     for index in sorted(indices, reverse=True):
+    #         del self.remaining_events[index]
 
     def remove_events_by_keys(self, number_key: str, keys: list):
         """
@@ -173,7 +174,7 @@ class ExtractionProcessor():
         """
 
         # iterate in reverse order over list indices
-        for index in range(len(self.remaining_events), -1, -1):
+        for index in range(len(self.remaining_events) - 1, -1, -1):
             if self.remaining_events[index][number_key] in keys:
                 del self.remaining_events[index]
 
@@ -197,7 +198,7 @@ class ExtractionProcessor():
         if keyword == "colocated":
             extractList = [{"number": info["number"], keyword: info[keyword], "title": [],
                             "short": info[keyword], "loctime": info["loctime"]}
-                           for info in self.remaining_events]
+                           for info in self.remaining_events if info[keyword]]
             return extractList
 
         extractList = []
@@ -288,11 +289,11 @@ class ExtractionProcessor():
         """
         Extract the location from the loctime attribute
         """
-        if text is None: return None
+        if text is None: return []
         try:
             return text.split(", ")[0:2]
         except IndexError:  # catch corner cases, where loctime attribute is not correctly formatted
-            return None
+            return []
 
     def extract_time_and_place(self, df: pd.DataFrame, keyword: str) -> pd.DataFrame:
         """
@@ -310,17 +311,14 @@ class ExtractionProcessor():
         df["year"] = df["loctime"].map(self.loctime_year)
         df["locations"] = df["loctime"].map(self.loctime_location)
 
-        # if the keyword is colocated, no further info was extracted
-        if keyword == "colocated":
-            df.loc[pd.isna(df['year']), "year"] = df["short"].map(self.loctime_year)
-            return df
+        # if the keyword is not colocated, try extracting further info
+        if keyword != "colocated":
+            # use nlp to get information when loctime was not set
+            df["dates"] = df[keyword].map(self.extract_times)
 
-        # use nlp to get information when loctime was not set
-        df["dates"] = df[keyword].map(self.extract_times)
-
-        df.loc[pd.isna(df['loctime']), "month"] = df["dates"].map(self.match_month)
-        df.loc[pd.isna(df['loctime']), "year"] = df["dates"].map(self.match_year)
-        df.loc[pd.isna(df['loctime']), "locations"] = df["coloc"].map(self.extract_location)
+            df.loc[pd.isna(df['loctime']), "month"] = df["dates"].map(self.match_month)
+            df.loc[pd.isna(df['loctime']), "year"] = df["dates"].map(self.match_year)
+            df.loc[pd.isna(df['loctime']), "locations"] = df["coloc"].map(self.extract_location)
 
         df.loc[pd.isna(df['year']), "year"] = df["short"].map(self.loctime_year)
 
@@ -328,6 +326,7 @@ class ExtractionProcessor():
         df["loc2"] = df["locations"].map(lambda l: l[1] if len(l) > 1 else None)
         df = df.drop("locations", axis=1)  # remove locations column
 
+        # use country converter to get ISO3 names
         cc = coco.CountryConverter()
         coco_logger = coco.logging.getLogger()
         coco_logger.setLevel(50)  # supress coco conversion output
@@ -349,5 +348,8 @@ class ExtractionProcessor():
         """
 
         title_split = self.split_by_short_title(keyword)
+
+        if not title_split:  # no remaining volumes given the keyword
+            return pd.DataFrame(columns=["number", "loctime", "month", "year", "countryISO3", "short"])
         return self.extract_time_and_place(
             pd.DataFrame.from_dict(title_split), keyword)
