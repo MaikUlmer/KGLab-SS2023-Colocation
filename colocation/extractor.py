@@ -180,14 +180,14 @@ class ExtractionProcessor():
     def split_by_short_title(self, keyword: str) -> list:
         """
         Given the lod containing the volumes extracted through keyword matching, takes the entries corresponding
-        to the types of keyword and splits the matched string by the short title into two parts: [title?, short].
+        to the types of keyword and splits the matched string by the short title into two parts: [title, short].
         The exception is when the keyword is colocated, which only contains the short title.
         Args:
             keyword(str): the matching keyword to look into the dict
         Returns:
             list[dict]: volumes where keyword contains information. Try to match a short title by regex and if found,
-                        said information is split into two parts [title?, short].
-                        title? is a list of possible titles by being before
+                        said information is split into two parts [title, short].
+                        title is a list of possible titles by being before
                         the short title and the short is a single string.
                         If no match is found in a string, the sets are left empty.
                         If the keyword is colocated, only set the short title and the loctime info.
@@ -195,7 +195,7 @@ class ExtractionProcessor():
 
         # the colocated attribute alone contains only the short title
         if keyword == "colocated":
-            extractList = [{"number": info["number"], keyword: info[keyword], "title?": [],
+            extractList = [{"number": info["number"], keyword: info[keyword], "title": [],
                             "short": info[keyword], "loctime": info["loctime"]}
                            for info in self.remaining_events]
             return extractList
@@ -222,10 +222,10 @@ class ExtractionProcessor():
                     befores.append(split[0])
                     shorts.append(split[1])
                 if shorts:
-                    extract = {"number": info["number"], keyword: info[keyword], "title?": befores,
+                    extract = {"number": info["number"], keyword: info[keyword], "title": befores,
                                "short": shorts[0], "loctime": info["loctime"]}
                 else:
-                    extract = {"number": info["number"], keyword: info[keyword], "title?": befores,
+                    extract = {"number": info["number"], keyword: info[keyword], "title": befores,
                                "short": "", "loctime": info["loctime"]}
                 extractList.append(extract)
         return extractList
@@ -294,14 +294,6 @@ class ExtractionProcessor():
         except IndexError:  # catch corner cases, where loctime attribute is not correctly formatted
             return None
 
-    def normalized_country(self, texts: list):
-        """
-        Apply country converter to locations and get ISO3 code
-        """
-        matches = coco.convert(texts, to="ISO3")
-        matches = [m for m in matches if m != "not found"]
-        return matches[0]
-
     def extract_time_and_place(self, df: pd.DataFrame, keyword: str) -> pd.DataFrame:
         """
         Takes a dataframe based on a lod and extracts time and location information
@@ -331,6 +323,18 @@ class ExtractionProcessor():
         df.loc[pd.isna(df['loctime']), "locations"] = df["coloc"].map(self.extract_location)
 
         df.loc[pd.isna(df['year']), "year"] = df["short"].map(self.loctime_year)
+
+        df["loc1"] = df["locations"].map(lambda l: l[0] if l else None)
+        df["loc2"] = df["locations"].map(lambda l: l[1] if len(l) > 1 else None)
+        df = df.drop("locations", axis=1)  # remove locations column
+
+        cc = coco.CountryConverter()
+        coco_logger = coco.logging.getLogger()
+        coco_logger.setLevel(50)  # supress coco conversion output
+
+        df["countryISO3"] = cc.pandas_convert(series=df["loc2"], to="ISO3", not_found="None")
+        df.loc[df["countryISO3"] == "None", "countryISO3"] = (
+            cc.pandas_convert(series=df["loc1"], to="ISO3", not_found="None"))
 
         return df
 
