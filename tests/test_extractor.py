@@ -315,15 +315,20 @@ class TestMatcher(unittest.TestCase):
         length = df.shape[0]
 
         # check if the dataframe has the correct columns
-        colums = ["number", "colocated", "title?", "short", "loctime",
-                  "year", "month", "locations"]
+        colums = ["number", "colocated", "title", "short", "loctime",
+                  "year", "month", "loc1", "loc2", "countryISO3"]
         self.assertSetEqual(set(colums), set(df.columns))
 
         # check if remove works
-        processor.remove_events_by_index([2,3])
+        processor.remove_events_by_keys(number_key="number", keys=[989])
         df = processor.get_loctime_info("colocated")
 
-        self.assertEqual(df.shape[0] + 2, length)
+        self.assertEqual(df.shape[0] + 1, length)
+
+        processor.remove_events_by_keys(number_key="number", keys=list(df["number"]))
+        df = processor.get_loctime_info("colocated")
+
+        self.assertEqual(df.shape[0], 0)
 
 
 if __name__ == "__main__":
