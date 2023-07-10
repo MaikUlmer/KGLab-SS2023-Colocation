@@ -1,4 +1,4 @@
-from colocation.cache_manager import JsonCacheManager
+from cache_manager import JsonCacheManager
 import re
 
 

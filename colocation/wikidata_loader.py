@@ -26,7 +26,6 @@ def get_workshop_ids_from_lod(lod: list) -> list:
     found = [str(event).split('/')[-1] for event in found]
     found = [s for s in found if s != "None"]
     found = ["wd:" + s for s in found]
-    found = found[0:1000]
     return found
 
 
@@ -50,29 +49,30 @@ def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) 
     # TODO handle wikidata line limit for values clause
 
     workshop_query = {
-    "lang": "sparql",
-    "name": "WS",
-    "title": "Workshops",
-    "description": "Wikidata SPARQL query getting academic workshops with relevant information",
-    "query": f"""
+        "lang": "sparql",
+        "name": "WS",
+        "title": "Workshops",
+        "description": "Wikidata SPARQL query getting academic workshops with relevant information",
+        "query": f"""
 SELECT distinct ?workshop ?workshopLabel ?short ?countryISO3 ?locationLabel ?start ?end ?timepoint
 WHERE
 {{
   VALUES ?workshop {{{" ".join(workshop_ids)}}}.
-  ?workshop wdt:P31/wdt:P279* wd:Q40444998.
-  SERVICE wikibase:label {{bd:serviceParam wikibase:language "en". }}
+  ?workshop wdt:P31/wdt:P279* wd:Q40444998;
+            rdfs:label ?workshopLabel.
+  FILTER langMatches(lang(?workshopLabel), "en")
   OPTIONAL {{ ?workshop wdt:P1813 ?short.}}
   optional {{ ?workshop wdt:P17 ?country.
               ?country wdt:P298 ?countryISO3.}}
-  optional {{ ?workshop wdt:P276 ?location.
-           SERVICE wikibase:label {{bd:serviceParam wikibase:language "en".}} }}
+  optional {{ ?workshop wdt:P276 ?location;
+                        rdfs:label ?locationLabel.
+              FILTER langMatches(lang(?locationLabel), "en") }}
   optional {{ ?workshop wdt:P580 ?start.}}
   optional {{ ?workshop wdt:P582 ?end.}}
   optional {{ ?workshop wdt:P585 ?timepoint.}}
 }}
 """
     }
-    print(workshop_query)
     endpoint_url = "https://query.wikidata.org/sparql"
     endpoint = SPARQL(endpoint_url)
     query = Query(**workshop_query)
@@ -104,15 +104,17 @@ def get_wikidata_conferences(reload: bool = False) -> pd.DataFrame:
         return pd.read_csv(store_path)
 
     conference_query = {
-    "lang": "sparql",
-    "name": "Cf",
-    "title": "Conferences",
-    "description": "Wikidata SPARQL query getting academic conferences with relevant information",
-    "query": """
+        "lang": "sparql",
+        "name": "Cf",
+        "title": "Conferences",
+        "description": "Wikidata SPARQL query getting academic conferences with relevant information",
+        "query": """
 SELECT distinct ?conference ?conferenceLabel ?short ?countryISO3 ?start ?end ?timepoint
 WHERE
 {
-  ?conference wdt:P31/wdt:P279* wd:Q2020153.
+  ?conference wdt:P31/wdt:P279* wd:Q2020153;
+              rdfs:label ?conferenceLabel.
+  FILTER langMatches(lang(?conferenceLabel), "en")
   SERVICE wikibase:label {bd:serviceParam wikibase:language "en". }
   OPTIONAL { ?conference wdt:P1813 ?short.}
   optional { ?conference wdt:P17 ?country.
