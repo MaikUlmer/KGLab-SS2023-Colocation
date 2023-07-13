@@ -80,7 +80,9 @@ WHERE
     try:
         lod = endpoint.queryAsListOfDicts(query.query)
         df = pd.DataFrame(lod)
-        df.to_csv(store_path)
+        renaming = {"workshopLabel": "title", "locationLabel": "locations"}
+        df = format_frame(df, renaming)
+        df.to_csv(store_path, index=False)
 
         return df
     except Exception as ex:
@@ -130,13 +132,41 @@ WHERE
     query = Query(**conference_query)
 
     try:
-        print(query.query)
         lod = endpoint.queryAsListOfDicts(query.query)
-
-        df = pd.DataFrame(lod)
-        df.to_csv(store_path)
-
-        return df
     except Exception as ex:
         print(f"{query.title} at {endpoint_url} failed: {ex.with_traceback()}")
         raise ex
+
+    df = pd.DataFrame(lod)
+    renaming = {"conferenceLabel": "title"}
+    df = format_frame(df, renaming)
+    df.to_csv(store_path, index=False)
+
+    return df
+
+
+def format_frame(df: pd.DataFrame, renaming: dict) -> pd.DataFrame:
+    """
+    Format dataframe such that it contains the columns required for matching.
+    Required columns: short, title, countryISO3, month, year
+    Args:
+        df(pd.DataFrame): workshop or conference dataframe to format
+        renaming(dict[str,str]): columns will be renamed after the given scheme
+    """
+    df = df.rename(columns=renaming)
+
+    def time_extraction(text: str, index: int):
+        """
+        Extract the year or month from the loctime attribute
+        """
+        if not text: return None
+        else: return text.split('-')[index]
+
+    df.loc[pd.isna(df['timepoint']), "timepoint"] = df["start"]
+    df.loc[pd.isna(df['timepoint']), "timepoint"] = df["end"]
+    df.loc[pd.isna(df['timepoint']), "timepoint"] = None
+
+    df["month"] = df["timepoint"].dt.month
+    df["year"] = df["timepoint"].dt.year
+
+    return df

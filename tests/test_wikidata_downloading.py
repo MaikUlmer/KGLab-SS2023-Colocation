@@ -33,9 +33,12 @@ class TestMatcher(unittest.TestCase):
         self.assertIsInstance(conferences, pd.DataFrame)
         self.assertTrue(conferences.shape[0] > 0)
 
-        selected = ["conference", "conferenceLabel", "short", "countryISO3",
-                    "start", "end", "timepoint"]
-        self.assertSetEqual(set(selected), set(conferences.columns))
+        selected = ["conference", "title", "short", "countryISO3",
+                    "year", "month"]
+        self.assertTrue(set(selected).issubset(set(conferences.columns)))
+
+        conferences2 = get_wikidata_conferences(reload=False)
+        self.assertTrue(conferences[selected].equals(conferences2[selected]))
 
         pass
 
@@ -65,9 +68,12 @@ class TestMatcher(unittest.TestCase):
         self.assertIsInstance(workshops, pd.DataFrame)
         self.assertTrue(workshops.shape[0] > 0)
 
-        selected = ["workshop", "workshopLabel", "short", "countryISO3",
-                    "locationLabel", "start", "end", "timepoint"]
-        self.assertSetEqual(set(selected), set(workshops.columns))
+        selected = ["workshop", "title", "short", "countryISO3",
+                    "year", "month"]
+        self.assertTrue(set(selected).issubset(set(workshops.columns)))
+
+        workshops2 = get_wikidata_workshops(ids, name="colocated", reload=False)
+        self.assertTrue(workshops[selected].equals(workshops2[selected]))
 
 
 if __name__ == "__main__":
