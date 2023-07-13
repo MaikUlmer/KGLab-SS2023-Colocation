@@ -2,3 +2,5 @@
 # WF 2023-04-21
 # install
 pip install orjson
+pip install pandas
+pip install pylodstorage

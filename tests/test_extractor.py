@@ -8,7 +8,7 @@ from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor
 
 test_procs = [
-        {
+    {
         "item": "http://www.wikidata.org/entity/Q113544519",
         "itemLabel": "Proceedings of the Second Workshop \"Automatische Bewertung von Programmieraufgaben\"",
         "itemDescription": "Proceedings of ABP 2015 workshop",
@@ -34,20 +34,20 @@ test_procs = [
     },
     {
         "item": "http://www.wikidata.org/entity/Q113544494",
-        "itemLabel": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",
+        "itemLabel": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",  # noqa: E501
         "itemDescription": "Proceedings of ACES-MB-WUCOR 2015 workshop",
         "sVolume": 1508,
         "Volume": None,
         "short_name": "ACES-MB-WUCOR 2015",
         "dblpProceedingsId": "conf/models/2015acesmb",
-        "title": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",
+        "title": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",  # noqa: E501
         "language_of_work_or_name": None,
         "language_of_work_or_nameLabel": None,
         "URN_NBN": "urn:nbn:de:0074-1508-8",
         "publication_date": "2015-11-11T00:00:00",
         "described_at_URL": "http://ceur-ws.org/Vol-1508/",
         "event": "http://www.wikidata.org/entity/Q113638411|http://www.wikidata.org/entity/Q113638432",
-        "eventLabel": "1st International Workshop on UML Consistency Rules|8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems",
+        "eventLabel": "1st International Workshop on UML Consistency Rules|8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems",  # noqa: E501
         "eventSeries": "",
         "eventSeriesLabel": "",
         "eventSeriesOrdinal": "",
@@ -83,7 +83,7 @@ test_procs = [
 ]
 
 test_volumes = [
-        {
+    {
         "fromLine": 47427,
         "toLine": 47450,
         "valid": 1,
@@ -107,7 +107,7 @@ test_volumes = [
         "ceurpubdate": "2015-10-23",
         "voltitle": "AI*IA 2015 Doctoral Consortium",
         "homepage": "http://aixia2015.unife.it/events/doctoral-consortium-call-for-paper/",
-        "h3": "Proceedings of the Doctoral Consortium (DC) co-located with the 14th Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",
+        "h3": "Proceedings of the Doctoral Consortium (DC) co-located with the 14th Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",  # noqa: E501
         "colocated": "AI*IA 2015",
         "vol_number": None
     },
@@ -119,7 +119,7 @@ test_volumes = [
         "acronym": "ABP 2015",
         "title": "Proceedings of the Second Workshop \"Automatische Bewertung von Programmieraufgaben\"",
         "loctime": "Wolfenbüttel, Germany, November 6, 2015",
-        "tdtitle": "Proceedings of the Second Workshop \"Automatische Bewertung von Programmieraufgaben\" (ABP 2015), Wolfenbüttel, Germany, November 6, 2015.",
+        "tdtitle": "Proceedings of the Second Workshop \"Automatische Bewertung von Programmieraufgaben\" (ABP 2015), Wolfenbüttel, Germany, November 6, 2015.",  # noqa: E501
         "volname": "Automatische Bewertung von Programmieraufgaben 2015",
         "editors": "Uta Priss, Michael Striewe",
         "submittedBy": "Uta Priss",
@@ -145,9 +145,9 @@ test_volumes = [
         "valid": 1,
         "url": "http://ceur-ws.org/Vol-1508/",
         "acronym": "ACES-MB-WUCOR 2015",
-        "title": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",
+        "title": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules",  # noqa: E501
         "loctime": "Ottawa, Canada, September 28, 2015",
-        "tdtitle": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules (ACES-MB-WUCOR 2015), Ottawa, Canada, September 28, 2015.",
+        "tdtitle": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules (ACES-MB-WUCOR 2015), Ottawa, Canada, September 28, 2015.",  # noqa: E501
         "volname": "Joint Proceedings of ACES-MB and WUCOR 2015",
         "editors": "Iulia Dragomir, Susanne Graf, Gabor Karsai, Florian Noyrit, Iulian Ober,",
         "submittedBy": "Iulia Dragomir",
@@ -163,7 +163,7 @@ test_volumes = [
         "ceurpubdate": "2015-11-11",
         "voltitle": "Joint Proceedings of ACES-MB and WUCOR 2015",
         "homepage": None,
-        "h3": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules (ACES-MB 2015 & WUCOR 2015) co-located with ACM/IEEE 18th International Conference on Model Driven Engineering Languages and Systems (MoDELS 2015)",
+        "h3": "Joint Proceedings of the 8th International Workshop on Model-based Architecting of Cyber-physical and Embedded Systems and 1st International Workshop on UML Consistency Rules (ACES-MB 2015 & WUCOR 2015) co-located with ACM/IEEE 18th International Conference on Model Driven Engineering Languages and Systems (MoDELS 2015)",  # noqa: E501
         "colocated": "MoDELS 2015",
         "vol_number": None
     },
@@ -175,7 +175,7 @@ test_volumes = [
         "acronym": "IT@LIA 2015",
         "title": "Proceedings of 1st AI*IA Workshop on Intelligent Techniques At LIbraries and Archives",
         "loctime": "Ferrara, Italy, September 22, 2015",
-        "tdtitle": "Proceedings of 1st AI*IA Workshop on Intelligent Techniques At LIbraries and Archives (IT@LIA 2015), Ferrara, Italy, September 22, 2015.",
+        "tdtitle": "Proceedings of 1st AI*IA Workshop on Intelligent Techniques At LIbraries and Archives (IT@LIA 2015), Ferrara, Italy, September 22, 2015.",  # noqa: E501
         "volname": "Intelligent Techniques At LIbraries and Archives 2015",
         "editors": "Stefano Ferilli, Nicola Ferro",
         "submittedBy": "Nicola Ferro",
@@ -191,7 +191,7 @@ test_volumes = [
         "ceurpubdate": "2015-11-12",
         "voltitle": "Intelligent Techniques At LIbraries and Archives 2015",
         "homepage": "http://italia2015.dei.unipd.it/",
-        "h3": "Proceedings of 1st AI*IA Workshop on Intelligent Techniques At LIbraries and Archives co-located with XIV Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",
+        "h3": "Proceedings of 1st AI*IA Workshop on Intelligent Techniques At LIbraries and Archives co-located with XIV Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",  # noqa: E501
         "colocated": "AI*IA 2015",
         "vol_number": None
     }
@@ -235,9 +235,10 @@ vol1485 = {
     "cvb.voltitle": "AI*IA 2015 Doctoral Consortium",
     "cvb.colocated": "AI*IA 2015",
     "cvb.homepage": "http://aixia2015.unife.it/events/doctoral-consortium-call-for-paper/",
-    "cvb.h3": "Proceedings of the Doctoral Consortium (DC) co-located with the 14th Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",
+    "cvb.h3": "Proceedings of the Doctoral Consortium (DC) co-located with the 14th Conference of the Italian Association for Artificial Intelligence (AI*IA 2015)",  # noqa: E501
     "cvb.vol_number": None
 }
+
 
 class DummyCacheManager(JsonCacheManager):
     """
@@ -246,18 +247,18 @@ class DummyCacheManager(JsonCacheManager):
     def __init__(self):
         pass
 
-    def json_path(self, lod_name:str)->str:
+    def json_path(self, lod_name: str) -> str:
         pass
-    
-    def load_lod(self, lod_name:str)->list:
+
+    def load_lod(self, lod_name: str) -> list:
         if lod_name == "Vol-1485":
             return vol1485
         return test_procs
-    
-    def store_lod(self, lod_name:str, lod:list):
+
+    def store_lod(self, lod_name: str, lod: list):
         pass
 
-    def reload_lod(self, lod_name:str)->list:
+    def reload_lod(self, lod_name: str) -> list:
         pass
 
 
@@ -266,14 +267,11 @@ class TestMatcher(unittest.TestCase):
     test matching
     """
 
-
     def setUp(self):
         pass
 
-
     def tearDown(self):
         pass
-
 
     def testExtractor(self):
         """
@@ -287,5 +285,5 @@ class TestMatcher(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
