@@ -6,6 +6,29 @@ import spacy
 import country_converter as coco
 
 
+matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
+matchregexes = {}
+
+matchregexes[matchtypes[0]] = re.compile(
+    "(?:(?:co-located|colocated) with) (.*)"
+)
+matchregexes[matchtypes[1]] = re.compile(
+    "(?:hosted by )(.*)"
+)
+matchregexes[matchtypes[2]] = re.compile(
+    "(?:affiliated with )(.*)"
+)
+matchregexes[matchtypes[3]] = re.compile(
+    "(?:in conjunction with )(.*)"
+)
+matchregexes[matchtypes[4]] = re.compile(
+    "(\w* @ .*)"
+)
+matchregexes[matchtypes[5]] = re.compile(
+    "(\w* at .*)"
+)
+
+
 class ColocationExtractor():
     """
     Given a list of dicts, searches for "co-located" information.
@@ -26,7 +49,6 @@ class ColocationExtractor():
             extra_provider(JsonCacheManager): loader for volume information not present in proc_provider,
                 should only be changed for test purposes.
         """
-        self.matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
 
         procs = "proceedings"
 
@@ -81,28 +103,6 @@ class ColocationExtractor():
         it within a list of dicts
         """
         colocation_lod = []
-
-        matchtypes = self.matchtypes
-        matchregexes = {}
-
-        matchregexes[matchtypes[0]] = re.compile(
-            "(?:(?:co-located|colocated) with) (.*)"
-        )
-        matchregexes[matchtypes[1]] = re.compile(
-            "(?:hosted by )(.*)"
-        )
-        matchregexes[matchtypes[2]] = re.compile(
-            "(?:affiliated with )(.*)"
-        )
-        matchregexes[matchtypes[3]] = re.compile(
-            "(?:in conjunction with )(.*)"
-        )
-        matchregexes[matchtypes[4]] = re.compile(
-            "(\w* @ .*)"
-        )
-        matchregexes[matchtypes[5]] = re.compile(
-            "(\w* at .*)"
-        )
 
         for volume in self.volumes_lod:
             matches = {mt: [] for mt in matchtypes}
