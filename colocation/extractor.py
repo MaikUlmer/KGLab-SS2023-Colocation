@@ -1,5 +1,4 @@
 from .cache_manager import JsonCacheManager
-
 import re
 import pandas as pd
 import spacy
