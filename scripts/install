@@ -5,3 +5,4 @@ pip install orjson
 pip install scikit-learn
 pip install pandas
 pip install country-converter
+pip install spacy
