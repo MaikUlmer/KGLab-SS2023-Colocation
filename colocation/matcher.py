@@ -14,12 +14,16 @@ class Matcher:
     match different types of events
     """
 
-    def __init__(self):
+    def __init__(self, types_to_match: list = None):
         """
         constructor
-        """
 
-    def match_same_type(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+        Args:
+            types_to_match(list): list of matchtypes if only a subset of the possible types should be matched
+        """
+        self.matchtypes = types_to_match if types_to_match else matchtypes
+
+    def match_same_type(self, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
         """
         Matches events of the same type, so conferences with conferences and
         workshops with workshops requiring df1 and df2 to have the columns
@@ -33,7 +37,8 @@ class Matcher:
         """
         return NotImplementedError()
 
-    def fuzzy_title_matching(workshops: pd.DataFrame, conferences: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    def fuzzy_title_matching(self, workshops: pd.DataFrame,
+                             conferences: pd.DataFrame, threshold: float) -> pd.DataFrame:
         """
         Uses td-idf embedding and cosine similarity to match titles.
         Since titles of conferences from different years are extremely similar, also use the year
@@ -47,18 +52,10 @@ class Matcher:
             pandas.DataFrame: workshops matched with conferences
         """
 
-        # handle if multiple titles are given in either DataFrame
-        # for now just choose the first one. TODO Potential for improvement
-        if type(workshops["W.title"].iloc[0]) == list:
-            workshops["W.title"].map(lambda l: l[0])
-        if type(conferences["C.title"].iloc[0]) == list:
-            workshops["C.title"].map(lambda l: l[0])
-
         corpus = list(workshops["W.title"])
         len_work = len(corpus)
 
         corpus.extend(list(conferences["C.title"]))
-
         # vectorize corpus using td-idf
         vectorizer = TfidfVectorizer(max_df=0.7)  # ignore stopwords
         X = vectorizer.fit_transform(corpus)
@@ -73,15 +70,6 @@ class Matcher:
 
         # find matches according to the similarity and threshold value
         matches = np.argwhere(cos >= threshold)
-        res = []
-
-        # further check year
-        for match in matches:
-            workshop = workshops.iloc[match[0]]
-            conference = conferences.iloc[match[1]]
-
-            if pd.notna(workshop["W.year"]) and (a := int(workshop["W.year"])) == (b := int(conference["C.year"])):
-                res.append((a, b))
 
         # make copies since we start changing the dataframes
         w = workshops.copy()
@@ -91,9 +79,15 @@ class Matcher:
         w["W.partner"] = np.nan
         c["C.partner"] = np.nan
 
-        for num, match in enumerate(res):
-            w["W.partner"].iloc[match[0]] = num
-            c["C.partner"].iloc[match[1]] = num
+        # further check year
+        for num, match in enumerate(matches):
+            workshop = workshops.iloc[match[0]]
+            conference = conferences.iloc[match[1] - len_work]
+
+            if (pd.notna(workshop["W.year"]) and pd.notna(conference["C.year"]) and
+                    int(workshop["W.year"]) == int(conference["C.year"])):
+                w.at[match[0], "W.partner"] = num
+                c.at[match[1] - len_work, "C.partner"] = num
 
         # now remove all unmatched rows
         w = w[pd.notna(w["W.partner"])]
@@ -107,7 +101,8 @@ class Matcher:
         match2 = match2[pd.notna(match2["W.month"])]
 
         res = pd.concat([match1, match2], ignore_index=True)
-        res.drop(["W.partner", "C.partner"])
+        res = res.drop(columns=["W.partner", "C.partner"])
+        res = res.drop_duplicates(subset=["W.title", "W.short", "C.title", "C.short"])
 
         return res
 
@@ -133,12 +128,16 @@ class Matcher:
 
         # rename columns to control join operations
         conf = conferences.rename(columns={old: f"C.{old}" for old in conferences.columns})
-        work = extract_function(matchtypes[0])
+        work = extract_function(self.matchtypes[0])
         work = work.rename(columns={old: f"W.{old}" for old in work.columns})
 
-        res = pd.DataFrame(columns=(work.columns).extend(conf.columns))
+        if type(conf["C.title"].iloc[0]) == list:
+            conf["C.title"] = conf["C.title"].map(lambda l: l[0] if l else "")
 
-        iterative_match_list = matchtypes.insert(1, "colocated")
+        res = pd.DataFrame(columns=list(work.columns).extend(list(conf.columns)))
+
+        iterative_match_list = self.matchtypes
+        iterative_match_list.insert(1, "colocated")
         for match_type in iterative_match_list:
 
             # first work DataFrame is initialized before the loop
@@ -146,12 +145,19 @@ class Matcher:
                 work = extract_function(match_type)
                 work = work.rename(columns={old: f"W.{old}" for old in work.columns})
 
+            # decide how to handle multiple titles
+            # for now just take the first one. TODO potential improvement
+            if type(work["W.title"].iloc[0]) == list:
+                work["W.title"] = work["W.title"].map(lambda l: l[0] if l else "")
+
             # first matching condition is matching short titles and country
-            match1 = work.merge(conferences, left_on=["W.short", "W.countryISO3"],
+            match1 = work.merge(conf, left_on=["W.short", "W.countryISO3"],
                                 right_on=["C.short", "C.countryISO3"])
 
             # second matching condition is matching short titles and month
-            match2 = work.merge(conferences, left_on=["W.short", "W.month"],
+            work = work.astype({"W.month": "str"})
+            conf = conf.astype({"C.month": "str"})
+            match2 = work.merge(conf, left_on=["W.short", "W.month"],
                                 right_on=["C.short", "C.month"])
 
             match1 = match1[match1["W.countryISO3"] != "None"]
@@ -163,6 +169,10 @@ class Matcher:
             # add found matches to result
             new = pd.concat([match1, match2, match3], ignore_index=True)
             res = pd.concat([res, new], ignore_index=True)
+
+            # remove double matches
+            # perhaps cleaner when given an id column for the conferences
+            res = res.drop_duplicates(subset=[f"W.{remove_key}", "C.title", "C.short"])
 
             # remove matched workshops from continuing iterations
             to_remove = list(new[f"W.{remove_key}"])

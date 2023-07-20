@@ -150,8 +150,12 @@ class ExtractionProcessor():
 
         self.nlp = spacy.load("en_core_web_sm")
         self.year_regex = re.compile("[0-9]{4}")
+        self.months = ["january", "february", "march,", "april", "may", "june",
+                       "july", "august", "september", "october", "november", "december"]
         self.month_regex = re.compile(
-            "january|february|march|april|may|june|july|august|september|october|november|december", re.IGNORECASE)
+            "|".join(self.months), re.IGNORECASE)
+
+        self.month_numerizer = dict((v, k) for v, k in zip(self.months, range(1, 13)))
 
     # this does not work because the dataframe indices are different from the overall lod
     # def remove_events_by_index(self, indices: list):
@@ -318,13 +322,15 @@ class ExtractionProcessor():
 
             df.loc[pd.isna(df['loctime']), "month"] = df["dates"].map(self.match_month)
             df.loc[pd.isna(df['loctime']), "year"] = df["dates"].map(self.match_year)
-            df.loc[pd.isna(df['loctime']), "locations"] = df["coloc"].map(self.extract_location)
+            df.loc[pd.isna(df['loctime']), "locations"] = df[keyword].map(self.extract_location)
+
+            df.drop(columns=["dates"])
 
         df.loc[pd.isna(df['year']), "year"] = df["short"].map(self.loctime_year)
+        df["month"] = df["month"].map(lambda x: self.month_numerizer[x.lower()] if x else None)
 
         df["loc1"] = df["locations"].map(lambda l: l[0] if l else None)
         df["loc2"] = df["locations"].map(lambda l: l[1] if len(l) > 1 else None)
-        df = df.drop("locations", axis=1)  # remove locations column
 
         # use country converter to get ISO3 names
         cc = coco.CountryConverter()
@@ -334,6 +340,11 @@ class ExtractionProcessor():
         df["countryISO3"] = cc.pandas_convert(series=df["loc2"], to="ISO3", not_found="None")
         df.loc[df["countryISO3"] == "None", "countryISO3"] = (
             cc.pandas_convert(series=df["loc1"], to="ISO3", not_found="None"))
+
+        df = df.astype({"countryISO3": str})
+
+        # remove columns not used for matching
+        df = df.drop(columns=["loc1", "loc2", "loctime", "locations", keyword])
 
         return df
 
@@ -350,6 +361,6 @@ class ExtractionProcessor():
         title_split = self.split_by_short_title(keyword)
 
         if not title_split:  # no remaining volumes given the keyword
-            return pd.DataFrame(columns=["number", "loctime", "month", "year", "countryISO3", "short"])
+            return pd.DataFrame(columns=["number", "title", "loctime", "month", "year", "countryISO3", "short"])
         return self.extract_time_and_place(
             pd.DataFrame.from_dict(title_split), keyword)
