@@ -23,6 +23,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Start Neo4j Server
+      uses: baptouuuu/setup-neo4j@v1.2.0
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
