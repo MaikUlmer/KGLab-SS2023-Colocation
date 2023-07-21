@@ -8,8 +8,8 @@ greentests() {
     pip install green
   fi
 
-  green tests -s 1
+  green # tests -s 1
 }
 
 greentests
-python -m unittest discover
+# python -m unittest discover

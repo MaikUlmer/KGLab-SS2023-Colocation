@@ -6,6 +6,8 @@ Created on 2023-05-10
 import unittest
 from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor
+from colocation.extractor import ExtractionProcessor
+import pandas as pd
 
 test_procs = [
     {
@@ -273,6 +275,12 @@ class TestMatcher(unittest.TestCase):
     def tearDown(self):
         pass
 
+    @classmethod
+    def setUpClass(self):
+        self.cacher = JsonCacheManager()
+        self.volumes = self.cacher.load_lod("volumes")
+        self.extractor = ColocationExtractor(self.volumes)
+
     def testExtractor(self):
         """
         test extractor on handpicked data
@@ -282,6 +290,66 @@ class TestMatcher(unittest.TestCase):
         self.assertTrue(extractor)
         self.assertTrue(len(extractor.get_colocation_info()) == 3)
         self.assertTrue(len(extractor.missing_events) == 1)
+
+    def testLoctimeExtraction(self):
+        """
+        test that the Extraction processor correctly extracts from the provided lods
+        """
+        extractor = self.extractor
+        self.assertTrue(extractor)
+
+        colocation_lod = extractor.get_colocation_info()
+        self.assertTrue(colocation_lod)
+        self.assertIsInstance(colocation_lod, list)
+        self.assertTrue(len(colocation_lod) > 0)
+
+        for extract in colocation_lod:
+            self.assertTrue(extract)
+            self.assertIsInstance(extract, dict)
+
+        # check the data extraction
+        processor = ExtractionProcessor(colocation_lod)
+        self.assertTrue(processor)
+
+        df = processor.get_loctime_info("colocated")
+        self.assertIsInstance(df, pd.DataFrame)
+
+        length = df.shape[0]
+
+        # check if the dataframe has the correct columns
+        colums = ["number", "title", "short",
+                  "year", "month", "countryISO3"]
+        self.assertSetEqual(set(colums), set(df.columns))
+
+        # check if remove works
+        processor.remove_events_by_keys(number_key="number", keys=[989])
+        df = processor.get_loctime_info("colocated")
+
+        self.assertEqual(df.shape[0] + 1, length)
+
+        processor.remove_events_by_keys(number_key="number", keys=list(df["number"]))
+        df = processor.get_loctime_info("colocated")
+
+        self.assertEqual(df.shape[0], 0)
+
+    def testLoctimeTypes(self):
+        tests = ["colocated", "coloc"]
+        extractor = self.extractor
+        colocation_lod = extractor.get_colocation_info()
+        processor = ExtractionProcessor(colocation_lod)
+
+        for test in tests:
+            df = processor.get_loctime_info(test)
+
+            for title in list(df["title"]):
+                self.assertIsInstance(title, list)
+            for short in list(df["short"]):
+                self.assertIsInstance(short, str)
+            properMonths = [month for month in list(df["month"]) if month]
+            for month in properMonths:
+                self.assertIsInstance(month, float)
+            for countryISO3 in list(df["countryISO3"]):
+                self.assertIsInstance(countryISO3, str)
 
 
 if __name__ == "__main__":
