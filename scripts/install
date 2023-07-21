@@ -6,5 +6,6 @@ pip install scikit-learn
 pip install pandas
 pip install country-converter
 pip install pylodstorage
+pip install py2neo
 pip install spacy
 python -m spacy download en_core_web_sm
