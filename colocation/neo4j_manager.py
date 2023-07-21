@@ -12,12 +12,15 @@ class Neo4jManager:
     accumulating the results of the different matching steps.
     """
 
-    def __init__(self):
+    def __init__(self, password: str = None):
         """
         constructor
         connects to neo4j graph and deletes all remaining nodes
+
+        Args:
+            password(str): password for the neo4j server if required
         """
-        self.graph = Graph("bolt://localhost:7687", auth=("", ""))
+        self.graph = Graph("bolt://localhost:7687", password=password)
         self.graph.delete_all()
 
     def add_matched_nodes(self, matched: pd.DataFrame, key_w: str, key_c: str, source_w: str, source_c: str):

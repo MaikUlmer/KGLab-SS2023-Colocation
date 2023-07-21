@@ -25,9 +25,6 @@ jobs:
     - uses: actions/checkout@v3
     - name: Start Neo4j Server
       uses: baptouuuu/setup-neo4j@v1.2.0
-      with:
-        tag: '3.4' # optional
-        password: null
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
