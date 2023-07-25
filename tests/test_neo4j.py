@@ -39,7 +39,7 @@ class TestNeo4j(unittest.TestCase):
             match (n)
             return count(n) as count
             """
-        self.graph = Graph("bolt://localhost:7687", auth=("", ""))
+        self.graph = Graph()
 
     def setUp(self):
         pass
@@ -51,7 +51,8 @@ class TestNeo4j(unittest.TestCase):
         """
         test whether the manager creates an empty neo4j server
         """
-        _ = Neo4jManager(password="ci")
+        # _ = Neo4jManager(password="ci")
+        _ = Neo4jManager()
 
         num = self.graph.run(self.count_query)
         self.assertEqual(num.evaluate(), 0)
@@ -61,7 +62,8 @@ class TestNeo4j(unittest.TestCase):
         test for a single matchsource, that nodes and relationships can be added
         adn that no duplicates will occur
         """
-        neo = Neo4jManager(password="ci")
+        # neo = Neo4jManager(password="ci")
+        neo = Neo4jManager()
 
         df = pd.read_csv(StringIO(test_data), sep=";")
         neo.add_matched_nodes(df, "number", "conference", "CeurWS", "Wikidata")

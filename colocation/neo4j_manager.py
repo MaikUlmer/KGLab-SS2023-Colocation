@@ -20,7 +20,8 @@ class Neo4jManager:
         Args:
             password(str): password for the neo4j server if required
         """
-        self.graph = Graph("bolt://localhost:7687", auth=('neo4j', password))
+        # self.graph = Graph("bolt://localhost:7687", auth=('neo4j', password))
+        self.graph = Graph()
         self.graph.delete_all()
 
     def add_matched_nodes(self, matched: pd.DataFrame, key_w: str, key_c: str, source_w: str, source_c: str):
