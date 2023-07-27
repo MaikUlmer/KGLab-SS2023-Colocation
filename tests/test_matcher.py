@@ -8,7 +8,7 @@ import pandas as pd
 from colocation.matcher import Matcher
 from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor, ExtractionProcessor
-from colocation.wikidata_loader import get_wikidata_conferences
+from colocation.dataloaders.wikidata_loader import get_wikidata_conferences
 
 
 class TestMatcher(unittest.TestCase):

@@ -7,9 +7,9 @@ import unittest
 import pandas as pd
 from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor
-from colocation.wikidata_loader import get_wikidata_conferences
-from colocation.wikidata_loader import get_wikidata_workshops
-from colocation.wikidata_loader import get_workshop_ids_from_lod
+from colocation.dataloaders.wikidata_loader import get_wikidata_conferences
+from colocation.dataloaders.wikidata_loader import get_wikidata_workshops
+from colocation.dataloaders.wikidata_loader import get_workshop_ids_from_lod
 
 
 class TestMatcher(unittest.TestCase):
