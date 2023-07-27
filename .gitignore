@@ -162,6 +162,7 @@ cython_debug/
 
 # local testing files
 *.json
+!data.json
 temp.*
 test.*
 *.csv
