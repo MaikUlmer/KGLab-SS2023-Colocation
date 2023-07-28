@@ -23,7 +23,8 @@ class Matcher:
         """
         self.matchtypes = types_to_match if types_to_match else matchtypes
 
-    def match_same_type(self, df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def match_same_type(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
         """
         Matches events of the same type, so conferences with conferences and
         workshops with workshops requiring df1 and df2 to have the columns
@@ -37,7 +38,8 @@ class Matcher:
         """
         return NotImplementedError()
 
-    def fuzzy_title_matching(self, workshops: pd.DataFrame,
+    @staticmethod
+    def fuzzy_title_matching(workshops: pd.DataFrame,
                              conferences: pd.DataFrame, threshold: float) -> pd.DataFrame:
         """
         Uses td-idf embedding and cosine similarity to match titles.
