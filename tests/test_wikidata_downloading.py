@@ -12,7 +12,7 @@ from colocation.dataloaders.wikidata_loader import get_wikidata_workshops
 from colocation.dataloaders.wikidata_loader import get_workshop_ids_from_lod
 
 
-class TestMatcher(unittest.TestCase):
+class TestWikidata(unittest.TestCase):
     """
     test download and caching
     """

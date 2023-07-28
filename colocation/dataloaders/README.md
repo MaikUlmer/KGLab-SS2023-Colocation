@@ -10,7 +10,7 @@ Instead of getting _all_ conferences, we can also use the CEUR-WS workshops we a
 Note that any htlm document we get from Dblp we will cache to reduce the number of queries we have to make.
 
 1. In the html document, Dblp displays which conference (series) the workshop is a part of:
-![](/images/DblpLinking.png)
+![](/images/DblpLinking.png)  
 Use a parser like Beatiful Soup to get the relevant links.
 
 1. Get the html pages for the relevant links. Here the link to **IWSECO** would have to be discarded, because it refers to the workshop series and not the co-location conference.
@@ -22,7 +22,7 @@ Use a parser like Beatiful Soup to get the relevant links.
 Since we match through the linking structure of Dblp, we will give these matches a different identifier to the one used in crossover matching.
 
 1. The conference series may also be richer in information than the previous one and also list some of the co-located workshops:
-![](/images/DblpInformationRich.png)
+![](/images/DblpInformationRich.png)  
 Hence we can search the index file for any CEUR-WS proceedings and save this information for the given workshops.
 When we then need to get the co-location conference for a workshop, we can start by checking, if we have previously found the workshop in the list of a conference and if we have filling out this information using this previous hit.  
 Note that this may cause precision loss in the case that a workshop is co-located with two conferences like the case with **ISWC 2007 + ASWC 2007** and that the workshop is listed by the conference series of the one and not the other conference.  
