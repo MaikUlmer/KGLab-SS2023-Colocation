@@ -8,9 +8,10 @@ from lodstorage.sparql import SPARQL
 import os
 import pandas as pd
 from pathlib import Path
+from typing import List, Dict
 
 
-def get_workshop_ids_from_lod(lod: list) -> list:
+def get_workshop_ids_from_lod(lod: List[Dict]) -> List[str]:
     """
     Takes a lod with wikidata_event keys and returns the
     list of wikidata ids
@@ -29,7 +30,7 @@ def get_workshop_ids_from_lod(lod: list) -> list:
     return found
 
 
-def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) -> pd.DataFrame:
+def get_wikidata_workshops(workshop_ids: List[str], name: str, reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all workshops from the given list of ids from Wikidata.
     Cache the result using the specified name and reuse, unless reload is specified.
@@ -45,8 +46,6 @@ def get_wikidata_workshops(workshop_ids: list, name: str, reload: bool = False) 
 
     if os.path.isfile(store_path) and not reload:
         return pd.read_csv(store_path)
-
-    # TODO handle wikidata line limit for values clause
 
     workshop_query = {
         "lang": "sparql",
@@ -134,7 +133,7 @@ WHERE
     try:
         lod = endpoint.queryAsListOfDicts(query.query)
     except Exception as ex:
-        print(f"{query.title} at {endpoint_url} failed: {ex.with_traceback()}")
+        print(f"{query.title} at {endpoint_url} failed: {str(ex)}")
         raise ex
 
     df = pd.DataFrame(lod)
@@ -145,7 +144,7 @@ WHERE
     return df
 
 
-def format_frame(df: pd.DataFrame, renaming: dict) -> pd.DataFrame:
+def format_frame(df: pd.DataFrame, renaming: Dict[str, str]) -> pd.DataFrame:
     """
     Format dataframe such that it contains the columns required for matching.
     Required columns: short, title, countryISO3, month, year
@@ -168,5 +167,71 @@ def format_frame(df: pd.DataFrame, renaming: dict) -> pd.DataFrame:
 
     df["month"] = df["timepoint"].dt.month
     df["year"] = df["timepoint"].dt.year
+
+    return df
+
+
+def get_wikidata_dblp_info(conference_ids: List[str], name: str, reload: bool = False) -> pd.DataFrame:
+    """
+    Use a SPARQL query to potentially get dois and dblp links for conferences from the given list of ids from Wikidata.
+    Cache the result using the specified name and reuse, unless reload is specified.
+
+    Args:
+        conference_ids(list(str)) : list of the ids for the conferences to query wikidata for
+        name(str) : name to differentiate queries for different purposes
+        reload(bool) : whether to force reload the conferences instead of taking from cache
+
+    Returns:
+        pandas.DataFrame: successfully connected elements with the columns
+            'conference', 'proc', 'dblp_event', 'dblp_proceedings', 'uri'
+    """
+    root_path = f"{Path.home()}/.ceurws"
+    os.makedirs(root_path, exist_ok=True)
+    store_path = root_path + f"/wikidata_dblp_{name}.csv"
+
+    if os.path.isfile(store_path) and not reload:
+        return pd.read_csv(store_path)
+
+    conference_ids = ["wd:" + c for c in conference_ids]
+
+    dblp_query = {
+        "lang": "sparql",
+        "name": "Wikidata Dblp",
+        "title": "Dblp",
+        "description": "Wikidata SPARQL query getting connecting information to dblp",
+        "query": f"""
+SELECT distinct ?conference (sample(?proc) as ?proc) (sample(?dblp_event) as ?dblp_event)
+(sample(?dblp_proceedings) as ?dblp_proceedings) (sample(?uri) as ?uri)
+WHERE
+{{
+  VALUES ?conference {{{" ".join(conference_ids)}}}.
+  ?conference wdt:P31/wdt:P279* wd:Q2020153.
+  optional {{?conference wdt:P10692 ?dblp_event.}}
+  optional {{
+    ?proc wdt:P4745 ?conference;
+          wdt:P8978 ?dblp_proceedings.
+  }}
+  optional {{
+    ?conference wdt:P973 ?uri.
+    Filter regex(str(?uri), "dblp", "i").
+  }}
+}}
+Group by ?conference
+"""
+    }
+    endpoint_url = "https://query.wikidata.org/sparql"
+    endpoint = SPARQL(endpoint_url)
+    query = Query(**dblp_query)
+
+    try:
+        lod = endpoint.queryAsListOfDicts(query.query)
+    except Exception as ex:
+        print(f"{query.title} at {endpoint_url} failed: {str(ex)}")
+        raise ex
+
+    df = pd.DataFrame(lod)
+    # ensure the dataframe has the correct signature
+    df = df.reindex(["conference", "proc", "dblp_event", "dblp_proceedings", "uri"], axis=1)
+    df.to_csv(store_path, index=False)
 
     return df

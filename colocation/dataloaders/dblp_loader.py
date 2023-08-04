@@ -1,181 +1,299 @@
 '''
-Created on 2023-07-27
+Created on 2023-07-28
 @author: nm
 '''
-import requests
+
+from lodstorage.query import Query
+from lodstorage.sparql import SPARQL
 import os
+import pandas as pd
 from pathlib import Path
-from bs4 import BeautifulSoup as soup
-from typing import Union, List
+from typing import List, Dict
+import re
 
 
-class DblpLoader():
+def query_dblp(query) -> List[Dict]:
     """
-    Scrape data from Dblp and cache all results to reduce
-    the number of requests sent.
+    Helper function that performs the Dblp query.
+
+    Args:
+        query: pylodstorage query to execute.
+
+    Returns:
+        list(dict): resulting lod
+    """
+    endpoint_url = "https://sparql.dblp.org/sparql"
+    endpoint = SPARQL(endpoint_url)
+    q = Query(**query)
+
+    try:
+        lod = endpoint.queryAsListOfDicts(q.query)
+    except Exception as ex:
+        print(f"{q.title} at {endpoint_url} failed: {str(ex)}")
+        raise ex
+
+    return lod
+
+
+def guess_dblp_conference(workshop_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Helper function for get_dblp_workshops.
+    Takes the workshop id and guesses the id of the proceedings of the co-located conference as described in the readme.
+
+    Args:
+        workshop_df(pandas.DataFrame): DataFrame containing the sparql response for Ceur-WS volumes.
+
+    Returns:
+        pandas.DataFrame: Same DataFrame enriched by a column 'conference_guess'.
     """
 
-    def __init__(self, use_cache: bool = True):
-        """
-        Constructor.
+    # write regex to match the string after the year number right before the end
+    regex = re.compile("[a-zA-Z]*$")
 
-        Args:
-            use_cache(bool): sets initial behaviour if cache should be reused.
-            Use set_cache_usage to change the value after initialisation.
-        """
-        self.use_cache = use_cache
-        self.root_path = root_path = f"{Path.home()}/.ceurws/dblp"
-        os.makedirs(root_path, exist_ok=True)
+    workshop_df["conference_guess"] = workshop_df["volume"].map(lambda x: re.sub(regex, '', x))
 
-        self.conference_doi = {}          # map the Dblp id to the DOI
-        self.workshop_to_conference = {}  # map CEUR-WS workshop found in conference series to conference
+    return workshop_df
 
-    def set_cache_usage(self, use_cache: bool):
-        """
-        Set whether the loader should use the cached files.
 
-        Args:
-            use_cache(bool): whether to reuse cache.
-        """
-        self.use_cache = use_cache
+def verify_dblp_uris(dblp_uris: pd.Series) -> pd.Series:
+    """
+    Takes a column of Dblp uris and uses a sparql query to verify whether any given one exists in Dblp.
 
-    def get_doi(self, dblp_id: str) -> Union[str, None]:
-        """
-        Takes the dblp id/ url of conference proceedings produced by this scraper
-        and returns its doi if present
+    Args:
+        dblp_uris(pandas.Series): column of uris to check.
 
-        Args:
-            dblp_id(str): id/url of conference proceedings to get doi for.
+    Returns:
+        pandas.Series: column of the same shape as the input with corresponding truth value.
+    """
+    uris = [f"<{proceeding}>" for proceeding in dblp_uris.to_list()]
 
-        Returns:
-            str|None: doi or None if not found
-        """
-        res = self.conference_doi[dblp_id] if dblp_id in self.conference_doi else None
-        return res
+    verify_query = {
+        "lang": "sparql",
+        "name": "Verify uris",
+        "title": "Verification",
+        "description": "Dblp SPARQL query checking if the uri has any property",
+        "query": f"""
+PREFIX dblp: <https://dblp.org/rdf/schema#>
+select distinct ?dblp
+where {{
+  Values ?dblp {{ {" ".join(uris)} }}.
+  ?dblp ?p ?o.
+}}
+"""
+    }
 
-    def get_dblp_page(self, url: str) -> str:
-        """
-        Method to get requested page from Dblp or internal cache.
+    lod = query_dblp(verify_query)
+    results = [res["dblp"] for res in lod]
 
-        Args:
-            url(str): url of the Dblp entity.
+    truth_column = dblp_uris.map(lambda x: x in results)
+    return truth_column
 
-        Returns:
-            str: content of the html file behind the url.
-        """
-        cached_path = f'{self.root_path}/{url}'
-        if self.use_cache and os.path.isfile(cached_path):
-            try:
-                with open(cached_path, encoding="utf8") as f:
-                    res = f.read()
-            except Exception as e:
-                msg = f"Could not read cached dblp file {url} due to {str(e)}."
-                raise Exception(msg)
 
-            return res
+def verify_dblp_events(dblp_uris: pd.Series, dblp_event_urls: pd.Series) -> pd.Series:
+    """
+    Takes a column of Dblp uris and their supposed corresponding event and
+    uses a sparql query to verify whether any given one exists in Dblp.
 
-        try:
-            r = requests.get(url)
-        except Exception as e:
-            msg = f"Dblp site request to {url} failed due to {str(e)}."
+    Args:
+        dblp_uris(pandas.Series): column of uris to base the check.
+        dblp_event_urls(pd.Series): column of urls to check.
 
-        if r.status_code != 200:
-            msg = f"Dblp request to {url} returned error code {r.status_code}."
-            raise Exception(msg)
+    Returns:
+        pandas.Series: column of the same shape as the input with corresponding truth value.
+    """
+    if (a := dblp_uris.shape[0]) != (b := dblp_event_urls.shape[0]):
+        raise ValueError(f"Series have different shapes: {a,b}.")
 
-        document = r.text
-        try:
-            with open(cached_path, "w", encoding="utf8") as f:
-                f.write(document)
-        except Exception as e:
-            msg = f"Could not write dblp file from {url} to cache due to {str(e)}"
-            raise Exception(msg)
+    uris = [f"<{proceeding}>" for proceeding in dblp_uris.to_list()]
 
-    def get_conferences_from_workshop(self, vol_number: int, short: Union[str, None] = None) -> List[str]:
-        """
-        Get the Dblp ids of the conferences the workshop is co-located with according to
-        the procedure link chasing.
+    verify_query = {
+        "lang": "sparql",
+        "name": "Verify event url",
+        "title": "Verification",
+        "description": "Dblp SPARQL query getting the toc page of the conference proceeedings",
+        "query": f"""
+PREFIX dblp: <https://dblp.org/rdf/schema#>
+select distinct ?dblp ?event
+where {{
+  Values ?dblp {{ {" ".join(uris)} }}.
+  ?dblp dblp:listedOnTocPage ?event.
+}}
+"""
+    }
 
-        Args:
-            vol_number(int): number of the CEUR-WS volume for the workshop.
-            short(str|None): short title/acronym of the workshop to eliminate workshop series links.
+    lod = query_dblp(verify_query)
+    assingment_dict = {pair["dblp"]: pair["event"] for pair in lod}
 
-        Returns:
-            list(str): Dblp ids of the conferences the workshop is co-located with.
-        """
+    toc_pages = dblp_uris.map(lambda x: assingment_dict[x] if x in assingment_dict else None)
 
-        # check if we have already found the workshop previously
-        if vol_number in self.workshop_to_conference:
-            return self.workshop_to_conference[vol_number]
+    truth_column = dblp_event_urls == toc_pages
+    return truth_column
 
-        # the conference series for CEUR-WS is split into ranges of length 100
-        lower_bound = int(vol_number / 100) * 100
-        subrange_url = f"https://dblp.org/db/series/ceurws/ceurws{lower_bound}-{lower_bound+99}.html"
 
-        # find the link to the workshop in the range
-        subrange_soup = soup(self.get_dblp_page(subrange_url), "html.parser")
-        work_box = subrange_soup.find("div", class_="nr", string=vol_number).parent
-        work_url = work_box.find("a", class_="toc-link")["href"]
+def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = False) -> pd.DataFrame:
+    """
+    Use a SPARQL query to get all Ceur-WS workshops from the given list of ids from Dblp.
+    Cache the result using the specified name and reuse, unless reload is specified.
 
-        workshop_soup = soup(self.get_dblp_page(work_url), "html.parser")
+    Args:
+        workshop_numbers(list(int)) : list of the numbers for the ceur-ws workshops.
+        name(str) : name to differentiate queries for different purposes.
+        reload(bool) : whether to force reload the conferences instead of taking from cache.
 
-        # get the links to potential conference links (container is named breadcrumbs)
-        breadcrumbs = workshop_soup.find("div", id="breadcrumbs")
-        conferences = breadcrumbs.find_all("meta", itemprop="position", content="3")
-        conferences = [c.parent for c in conferences]
-        conferences = [c.a["href"] for c in conferences]
+    Returns:
+        pandas.DataFrame: DataFrame containing relevant information about the Ceur-WS volumes,
+                          including guess for proceedings of the co-located conference.
+    """
+    root_path = f"{Path.home()}/.ceurws"
+    os.makedirs(root_path, exist_ok=True)
+    store_path = root_path + f"/dblp_workshops_{name}.csv"
 
-        # delete links to workshop series
-        series_names = [c.split("/")[-2] for c in conferences]
-        conferences = [c for c, s in zip(conferences, series_names) if s not in short.lower()]
+    if os.path.isfile(store_path) and not reload:
+        return pd.read_csv(store_path)
 
-        # conferences now are the conference series
-        # we now process these to extract as much information as possible
-        res = []
-        for conf_series in conferences:
-            res.append(self.scrape_from_conference_series(conf_series=conf_series, vol_number=vol_number))
+    workshop_query = {
+        "lang": "sparql",
+        "name": "DWS",
+        "title": "DWorkshops",
+        "description": "Dblp SPARQL query getting academic workshops with relevant information",
+        "query": f"""
+PREFIX datacite: <http://purl.org/spar/datacite/>
+PREFIX dblp: <https://dblp.org/rdf/schema#>
+PREFIX litre: <http://purl.org/spar/literal/>
+SELECT ?vol_number ?volume ?dblpid ?urn
+WHERE{{
+?volume dblp:publishedIn "CEUR Workshop Proceedings" ;
+    dblp:publishedInSeries "CEUR Workshop Proceedings" ;
+    dblp:publishedInSeriesVolume ?vol_number.
+    VALUES ?vol_number {{{" ".join([f'"{number}"' for number in workshop_numbers])}}}.  # dblp needs number as string
+    ?volume datacite:hasIdentifier ?s.
+    ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
+        litre:hasLiteralValue ?dblpid ;
+        a datacite:ResourceIdentifier.
+    optional {{
+    ?volume datacite:hasIdentifier ?s2.
+    ?s2	datacite:usesIdentifierScheme datacite:urn ;
+        litre:hasLiteralValue ?urn ;
+        a datacite:ResourceIdentifier.
+    }}
+ }}
+"""
+    }
 
-        return [r for r in res if r]
+    lod = query_dblp(workshop_query)
+    df = pd.DataFrame(lod)
 
-    def scrape_from_conference_series(self, conf_series: str, vol_number: int, year: int) -> str:
-        """
-        Infer as much data as possible from the given conference series about
-        CEUR-WS workshops for later inference.
+    df = guess_dblp_conference(df)
 
-        Args:
-            conf_series(str): url of the conference series
-            vol_number(int): number of the CEUR-WS volume for the workshop.
-            year(int): year of the workshop to identify conference
+    df.to_csv(store_path, index=False)
 
-        Returns:
-            str: Dblp id of the conferences the workshop is co-located with.
-        """
-        conference_soup = soup(self.get_dblp_page(conf_series, "html.parser"))
+    return df
 
-        # find all occurances of Ceur-WS workshop mentions
-        ceur = conference_soup.find_all("a", href="https://dblp.org/db/series/ceurws/index.html")
 
-        ceur_numbers = [int(c.next_sibling[1:-2]) for c in ceur]
-        # go up to the list level and search for the link in the first item
-        list_heads = [c.parent.parent.parent.next for c in ceur]
-        parent_conferences = [c.find("a", itemprop="url")["href"] for c in list_heads]
-        parent_conference_dois = [c.find("li", class_="ee").next["href"] for c in list_heads]
-        # parent_conferences = [c.parent.parent.parent.next.find("a", class_="toc-link")["href"] for c in ceur]
+def get_dblp_conferences(reload: bool = False) -> pd.DataFrame:
+    """
+    Use a SPARQL query to get all conferences from Dblp.
+    Cache the result and reuse, unless reload is specified.
 
-        # add found relationship between volume and conference
-        for num, conf in zip(ceur_numbers, parent_conferences):
-            self.workshop_to_conference[num] = conf
+    Args:
+        reload(bool) : whether to force reload the conferences instead of taking from cache.
 
-        # get doi of the new conferences
-        for conf, doi in zip(parent_conferences, parent_conference_dois):
-            self.conference_doi[conf] = doi
+    Returns:
+        pandas.DataFrame: conferences with columns 'volume', 'event', 'title', 'doi'
+    """
+    root_path = f"{Path.home()}/.ceurws"
+    os.makedirs(root_path, exist_ok=True)
+    store_path = root_path + "/dblp_conferences.csv"
 
-        # now find the conference for the given workshop
-        res: str
-        if vol_number in self.workshop_to_conference:
-            res = self.workshop_to_conference[vol_number]
-        else:
-            conference = conference_soup.find("h2", id=year)
-            res = conference.parent.next_sibling.find("a", itemprop="url")["href"]
+    if os.path.isfile(store_path) and not reload:
+        return pd.read_csv(store_path)
 
-        return list(set(res))
+    conference_query = {
+        "lang": "sparql",
+        "name": "DCf",
+        "title": "DConferences",
+        "description": "Dblp SPARQL query getting academic conferences with relevant information",
+        "query": """
+PREFIX datacite: <http://purl.org/spar/datacite/>
+PREFIX litre: <http://purl.org/spar/literal/>
+PREFIX dblp: <https://dblp.org/rdf/schema#>
+select distinct ?volume ?event ?title ?doi
+where {
+  ?volume dblp:title ?title.
+  FILTER regex(?title, "^proceeding", "i")
+  FILTER regex(?title, "conference", "i")
+  ?volume datacite:hasIdentifier ?s;
+          dblp:listedOnTocPage ?event.
+    ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
+        litre:hasLiteralValue ?dblpid ;
+        a datacite:ResourceIdentifier.
+  optional {
+    ?volume datacite:hasIdentifier ?s2.
+    ?s2	datacite:usesIdentifierScheme datacite:doi ;
+        litre:hasLiteralValue ?doi;
+        a datacite:ResourceIdentifier.
+  }
+}
+"""
+    }
+    lod = query_dblp(conference_query)
+    df = pd.DataFrame(lod)
+
+    df.to_csv(store_path, index=False)
+
+    return df
+
+
+def dblp_events_to_proceedings(events: pd.Series) -> pd.Series:
+    """
+    Given the links to dblp events like
+    'https://dblp.org/db/conf/pqcrypto/pqcrypto2014' returns the links to the proceedings like
+    'https://dblp.org/rec/conf/pqcrypto/2014' using a guess, since we cannot for sure differentiate
+    workshops co-located with the conference from the conference using sparql.
+
+    Args:
+        events(pandas.Series): event ids to get proceedings ids from.
+
+    Returns:
+        pandas.Series: event ids replaced with proceedings ids.
+    """
+    regex = re.compile("[a-zA-Z]*(?=[0-9]{4}$)")
+    events = events.map(lambda event: re.sub("db/", "rec/", event) if event else event)
+    events = events.map(lambda event: re.sub(regex, "", event) if event else event)
+
+    return events
+
+
+def dblp_proceedings_to_events(proceedings: pd.Series) -> pd.Series:
+    """
+    Given the links to dblp proceedings like
+    'https://dblp.org/rec/conf/pqcrypto/2014' returns the links to the events like
+    'https://dblp.org/db/conf/pqcrypto/pqcrypto2014' using a sparql query.
+
+    Args:
+        proceedings(pandas.Series): proceedings ids to get event ids from.
+
+    Returns:
+        pandas.Series: proceedings ids replaced with event ids.
+    """
+
+    pro = [f"<{proceeding}>" for proceeding in proceedings.to_list()]
+
+    transform_query = {
+        "lang": "sparql",
+        "name": "Proceedings to Event",
+        "title": "Proceedings to Event",
+        "description": "Dblp SPARQL query getting the Event id for the given proceedings id",
+        "query": f"""
+PREFIX dblp: <https://dblp.org/rdf/schema#>
+select ?dblp ?toc
+where {{
+  Values ?dblp {{ {" ".join(pro)} }}
+  optional {{?dblp dblp:listedOnTocPage ?toc. }}
+}}
+"""
+    }
+    lod = query_dblp(transform_query)
+
+    res = pd.DataFrame(lod)["toc"] if lod else pd.Series(data=[])
+    return res
