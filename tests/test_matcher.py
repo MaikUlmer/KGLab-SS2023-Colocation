@@ -142,9 +142,9 @@ class TestMatcher(unittest.TestCase):
         result = matcher.link_wikidata_dblp_conferences(conferences, "test", True)
 
         self.assertIsInstance(result, pd.DataFrame)
-        self.assertListEqual([r for r in result["dblp_id"].to_list() if r], expected,
-                             msg=f"Expected results {expected} but got {[r for r in result['dblp_id'].to_list()]}.\
-                               If this changes, check if the data has been supplemented in wikidata.")
+        self.assertListEqual([r for r in result["C.dblp_id"].to_list() if r], expected,
+                             msg="Unexpected result. If this produces too many results,\
+                             check if the data has been supplemented in wikidata.")
         self.assertTrue(matcher.wikidata_supplement[
             ["dblp_event_supplement", "dblp_proceedings_supplement"]].any(axis=None))
 

@@ -130,7 +130,7 @@ where {{
     return truth_column
 
 
-def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = False) -> pd.DataFrame:
+def get_dblp_workshops(workshop_numbers: List[int], name: str, number_key: str = "number", reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all Ceur-WS workshops from the given list of ids from Dblp.
     Cache the result using the specified name and reuse, unless reload is specified.
@@ -138,6 +138,7 @@ def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = Fa
     Args:
         workshop_numbers(list(int)) : list of the numbers for the ceur-ws workshops.
         name(str) : name to differentiate queries for different purposes.
+        number_key(str): name the number attribute should have
         reload(bool) : whether to force reload the conferences instead of taking from cache.
 
     Returns:
@@ -160,12 +161,12 @@ def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = Fa
 PREFIX datacite: <http://purl.org/spar/datacite/>
 PREFIX dblp: <https://dblp.org/rdf/schema#>
 PREFIX litre: <http://purl.org/spar/literal/>
-SELECT ?vol_number ?volume ?dblpid ?urn
+SELECT ?{number_key} ?volume ?dblpid ?urn
 WHERE{{
 ?volume dblp:publishedIn "CEUR Workshop Proceedings" ;
     dblp:publishedInSeries "CEUR Workshop Proceedings" ;
-    dblp:publishedInSeriesVolume ?vol_number.
-    VALUES ?vol_number {{{" ".join([f'"{number}"' for number in workshop_numbers])}}}.  # dblp needs number as string
+    dblp:publishedInSeriesVolume ?{number_key}.
+    VALUES ?{number_key} {{{" ".join([f'"{number}"' for number in workshop_numbers])}}}.  # dblp needs number as string
     ?volume datacite:hasIdentifier ?s.
     ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
         litre:hasLiteralValue ?dblpid ;
@@ -220,8 +221,8 @@ PREFIX dblp: <https://dblp.org/rdf/schema#>
 select distinct ?volume ?event ?title ?doi
 where {
   ?volume dblp:title ?title.
-  FILTER regex(?title, "^proceeding", "i")
   FILTER regex(?title, "conference", "i")
+  FILTER regex(str(?volume), "conf", "i")
   ?volume datacite:hasIdentifier ?s;
           dblp:listedOnTocPage ?event.
     ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
