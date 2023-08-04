@@ -3,7 +3,7 @@ Created on 2023-07-27
 @author: nm
 
 Deprecated
-'''
+
 import requests
 import os
 from pathlib import Path
@@ -181,3 +181,4 @@ class DblpLoader():
             res = conference.parent.next_sibling.find("a", itemprop="url")["href"]
 
         return list(set(res))
+'''
