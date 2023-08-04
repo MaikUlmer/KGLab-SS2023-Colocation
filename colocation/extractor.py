@@ -122,6 +122,7 @@ class ColocationExtractor():
                 volume_dict["number"] = volume_number
                 volume_dict["colocated"] = volume["colocated"]
                 volume_dict["loctime"] = volume["loctime"]
+                volume_dict["acronym"] = volume["acronym"]
 
                 for mt in matchtypes:
                     volume_dict[mt] = matches[mt]
