@@ -2,7 +2,9 @@
 Created on 2023-07-28
 
 @author: nm
-'''
+
+Corresponding module is depricated.
+
 import unittest
 import os
 from pathlib import Path
@@ -74,3 +76,4 @@ class TestDblp(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+'''
