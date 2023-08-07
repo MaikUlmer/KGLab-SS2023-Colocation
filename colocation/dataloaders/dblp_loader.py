@@ -130,7 +130,8 @@ where {{
     return truth_column
 
 
-def get_dblp_workshops(workshop_numbers: List[int], name: str, number_key: str = "number", reload: bool = False) -> pd.DataFrame:
+def get_dblp_workshops(workshop_numbers: List[int], name: str, number_key: str = "number",
+                       reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all Ceur-WS workshops from the given list of ids from Dblp.
     Cache the result using the specified name and reuse, unless reload is specified.
@@ -240,6 +241,9 @@ where {
     lod = query_dblp(conference_query)
     df = pd.DataFrame(lod)
 
+    # drop workshops
+    df = df[df["title"].map(lambda x: "workshop" not in x.lower())]
+
     df.to_csv(store_path, index=False)
 
     return df
@@ -259,8 +263,9 @@ def dblp_events_to_proceedings(events: pd.Series) -> pd.Series:
         pandas.Series: event ids replaced with proceedings ids.
     """
     regex = re.compile("[a-zA-Z]*(?=[0-9]{4}$)")
-    events = events.map(lambda event: re.sub("db/", "rec/", event) if event else event)
-    events = events.map(lambda event: re.sub(regex, "", event) if event else event)
+    db = re.compile("db/")
+    events = events.map(lambda event: re.sub(db, "rec/", event) if event else event, na_action='ignore')
+    events = events.map(lambda event: re.sub(regex, "", event) if event else event, na_action='ignore')
 
     return events
 

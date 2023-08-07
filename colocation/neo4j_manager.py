@@ -88,7 +88,7 @@ class Neo4jManager:
         for row in matched.drop_duplicates(subset=[f"C.{key_c}"]).to_dict(orient="records"):
             attributes = {key[2:]: value for key, value in row.items() if key in conference_attr}
             attributes[source_c] = row[f"C.{key_c}"]
-            node = Node(source_c, key_c, **attributes)
+            node = Node(source_c, type_c, **attributes)
             conference_nodes[row[f"C.{key_c}"]] = node
             tx.merge(node, type_c, source_c)
 

@@ -122,12 +122,21 @@ class TestMatcher(unittest.TestCase):
             {
                 "acronym": "QPP++ 2023",
                 "stefan": 3366
+            },
+            {
+                "acronym": "DCECTEL 2021",
+                "stefan": 3076
             }
         ]
-        result = Matcher.link_workshops_dblp_conferences(workshops, "stefan")
+        matcher = Matcher()
+        result = matcher.link_workshops_dblp_conferences(workshops, "stefan", reload=True)
         self.assertIsInstance(result, pd.DataFrame)
+        print(result.iloc[0])
+        print(result["C.conference_guess"])
         self.assertTrue(result.shape[0] > 0,
                         msg="The linking produced not a single link.")
+        self.assertIn("https://dblp.org/rec/conf/ectel/2021",
+                      list(result["C.conference_guess"]))
 
     @unittest.skipIf(IN_CI, "Skip in CI environment")
     def test_wikidata_dblp_linking(self):
@@ -137,6 +146,9 @@ class TestMatcher(unittest.TestCase):
         """
         conferences = ["Q106087501", "Q106244990", "Q861711", "Stefan"]
         expected = ["https://dblp.org/rec/conf/aecia/2014", "https://dblp.org/rec/conf/ict/2016"]
+
+        # edge case ?
+        # Q113580008 -> https://dblp.org/rec/conf/ectel/2021
 
         matcher = Matcher()
         result = matcher.link_wikidata_dblp_conferences(conferences, "test", True)

@@ -104,6 +104,27 @@ The described process runs into a few problems due to the limited degree that Db
 
 - Getting from workshops to the co-located conferences is not FAIR. We are instead using patterns in the URIs and hope that these are _universal_ and _unchanging_ over time. Otherwise, there are some workshops that cannot be linked to conferences using our method and there may be a point in time, when the pattern changes, which would break the algorithm for future releases.
 - There is no attribute that identifies a conference or a workshop. You can differentiate these from papers and other entities by using a regex filter matching "proceedings", but you cannot differentiate between workshops and conferences without using URI patterns. This results in the problem, that it is FAIR to access an event from its proceedings, but it is __not__ FAIR to do so the other way around. 
+- Vol 3076 is linked to Ectel 2021 while Wikidata is linked with the __doctorial consortium__ of Ectel 2021  
+![](/images/Ectel.png) 
+- Split proceedings like ISWC 2014 breaks Dblp uri inference and also does not play nicely with Wikidata linking  
+![](/images/ISWC2014.png)  
+Here the Wikidata event is only linked to the proceedings part 2.
+We get that there are currently 1151 conferences with split proceedings using the following query. Therefore, this is a case we should definitely consider.
+```
+select (count(?volume1) as ?split_proceedings)
+where {
+  ?volume1 dblp:title ?title1.
+  FILTER regex(?title1, "conference", "i")
+  FILTER regex(str(?volume1), "conf", "i")
+  FILTER regex(str(?volume1), "-2$", "i")
+  ?volume1 datacite:hasIdentifier ?s;
+          dblp:listedOnTocPage ?event.
+    ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
+        litre:hasLiteralValue ?dblpid ;
+        a datacite:ResourceIdentifier.
+}
+```
+
 
 # Deprecated
 The following methodologies have been superseded by different approaches listed above.

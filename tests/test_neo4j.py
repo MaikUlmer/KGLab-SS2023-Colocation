@@ -45,6 +45,7 @@ class TestNeo4j(unittest.TestCase):
             return count(n) as count
             """
         self.graph = Graph()
+        self.matcher = Matcher()
 
     def setUp(self):
         pass
@@ -94,7 +95,7 @@ class TestNeo4j(unittest.TestCase):
         conferences = ["Q106087501", "Q106244990"]
         dblp_conferences = ["https://dblp.org/rec/conf/aecia/2014", "https://dblp.org/rec/conf/ict/2016"]
 
-        matcher = Matcher()
+        matcher = self.matcher
         result = matcher.link_wikidata_dblp_conferences(conferences, "test", True)
 
         neo = Neo4jManager(delete_nodes=True)
@@ -126,7 +127,8 @@ class TestNeo4j(unittest.TestCase):
                 "number": 3366
             }
         ]
-        result = Matcher.link_workshops_dblp_conferences(workshops, reload=True)
+        matcher = self.matcher
+        result = matcher.link_workshops_dblp_conferences(workshops, reload=True)
 
         neo = Neo4jManager(delete_nodes=True)
         neo.add_matched_nodes(result,

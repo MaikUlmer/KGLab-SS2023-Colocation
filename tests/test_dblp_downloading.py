@@ -93,8 +93,8 @@ class TestDblp(unittest.TestCase):
         """
         test conversion ofevent id to proceeding id
         """
-        events = ["https://dblp.org/db/conf/aaai/aaai2019", "https://dblp.org/db/conf/agile/agile2013", None]
-        expected = ["https://dblp.org/rec/conf/aaai/2019", "https://dblp.org/rec/conf/agile/2013", None]
+        events = ["https://dblp.org/db/conf/aaai/aaai2019", "https://dblp.org/db/conf/agile/agile2013", None, np.nan]
+        expected = ["https://dblp.org/rec/conf/aaai/2019", "https://dblp.org/rec/conf/agile/2013", None, np.nan]
 
         evs = pd.Series(data=events)
         result = dblp_events_to_proceedings(evs)
