@@ -28,6 +28,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+    - run: pip install --upgrade pip
     - name: Install python dependencies
       run: pip install -r requirements.txt
     - name: run additional setup
