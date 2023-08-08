@@ -4,6 +4,7 @@ Created on 2023-04-21
 '''
 import pandas as pd
 import numpy as np
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Union, Callable, List, Dict
@@ -207,7 +208,9 @@ class Matcher:
         # the important factors now are the conference_guess and the workshops
         # now we only need to eliminate wrong guesses
 
-        conference_info = self.dblp_conferences if self.dblp_conferences else get_dblp_conferences(reload)
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
         conference_info = conference_info.rename(
             columns={old: f"C.{old}" for old in conference_info.columns})
         conference_info = conference_info.rename(
@@ -335,7 +338,10 @@ class Matcher:
             ["conference", "proc", "dblp_event_supplement", "dblp_proceedings_supplement"]]
 
         # enrich the result using the additional info from the conference query
-        conference_info = self.dblp_conferences if self.dblp_conferences else get_dblp_conferences(reload)
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
+
         conference_info = conference_info.rename(
             columns={old: f"C.{old}" for old in conference_info.columns})
 
@@ -351,3 +357,27 @@ class Matcher:
         cols = ["W.conference", "C.dblp_id"]
         cols.extend([col for col in list(conference_info.columns) if col != "C.volume"])
         return wikidata_conferences[cols]
+
+    def link_dblp_split_proceedings(self, reload: bool = False) -> pd.DataFrame:
+        """
+        Detects the split proceedings pattern in the ids of the dblp conference proceedings
+        and produces a dataframe with the real proceedings linked to the virtual ones.
+
+        Args:
+            reload(bool): Argument to pass to sparql query cacher whether to force reload even if named query is cached.
+        Returns:
+            pandas.DataFrame: DataFrame that holds the conference pairs that were successfully linked.
+                              The keys are 'conference' and 'virtual'.
+        """
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
+
+        split_regex = re.compile("-[0-9]+$")
+        conference_info = conference_info[conference_info["volume"].str.contains(split_regex, na=False, regex=True)]
+        conference_info["virtual"] = conference_info["volume"].map(lambda x: re.sub(split_regex, '', x))
+
+        conference_info = conference_info.rename(
+            columns={"volume": "W.conference", "virtual": "C.virtual", "title": "C.title"}
+        )
+        return conference_info[["W.conference", "C.virtual", "C.title"]]

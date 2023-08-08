@@ -244,6 +244,14 @@ where {
     # drop workshops
     df = df[df["title"].map(lambda x: "workshop" not in x.lower())]
 
+    # add virtual collective proceedings for split prceedings
+    split = df[df["volume"].str.contains("-[0-9]+$", na=False, regex=True)]
+    split = split.copy()
+    split["volume"] = split["volume"].map(lambda x: x[0:-2])
+    split.drop_duplicates(subset="volume")
+
+    df = pd.concat([df, split])
+
     df.to_csv(store_path, index=False)
 
     return df

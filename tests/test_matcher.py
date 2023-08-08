@@ -126,17 +126,22 @@ class TestMatcher(unittest.TestCase):
             {
                 "acronym": "DCECTEL 2021",
                 "stefan": 3076
+            },
+            {
+                "stefan": 699  # should be linked with virtual proceedings
             }
         ]
         matcher = Matcher()
         result = matcher.link_workshops_dblp_conferences(workshops, "stefan", reload=True)
         self.assertIsInstance(result, pd.DataFrame)
-        print(result.iloc[0])
-        print(result["C.conference_guess"])
         self.assertTrue(result.shape[0] > 0,
                         msg="The linking produced not a single link.")
         self.assertIn("https://dblp.org/rec/conf/ectel/2021",
                       list(result["C.conference_guess"]))
+
+        self.assertIn("https://dblp.org/rec/conf/esws/2010",
+                      list(result["C.conference_guess"]),
+                      msg="Failed linking with virtual conference.")
 
     @unittest.skipIf(IN_CI, "Skip in CI environment")
     def test_wikidata_dblp_linking(self):
