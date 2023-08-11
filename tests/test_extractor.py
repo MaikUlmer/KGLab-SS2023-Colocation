@@ -5,8 +5,7 @@ Created on 2023-05-10
 '''
 import unittest
 from colocation.cache_manager import JsonCacheManager
-from colocation.extractor import ColocationExtractor
-from colocation.extractor import ExtractionProcessor
+from colocation.extractor import ColocationExtractor, ExtractionProcessor, TitleExtractor
 import pandas as pd
 
 test_procs = [
@@ -350,6 +349,37 @@ class TestMatcher(unittest.TestCase):
                 self.assertIsInstance(month, float)
             for countryISO3 in list(df["countryISO3"]):
                 self.assertIsInstance(countryISO3, str)
+
+class TestTitleExtractor(unittest.TestCase):
+    """
+    Test the attribute extraction capabilities of TitleExtractor.
+    """
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def testExtraction(self):
+        dblp_conferences = [
+            {
+                "volume": "https://dblp.org/rec/conf/ercimdl/2003",
+                "doi": "10.1007/b11967",
+                "title": "Research and Advanced Technology for Digital Libraries,\
+7th European Conference, ECDL 2003, Trondheim, Norway, August 17-22, 2003, Proceedings"
+            }
+        ]
+        dblp_conferences = pd.DataFrame(dblp_conferences)
+        title_extractor = TitleExtractor()
+        extract = title_extractor.extract_attributes(dblp_conferences)
+
+        self.assertTrue(set(dblp_conferences.columns).issubset(set(extract.columns)),
+                        msg="The extraction process deleted some columns")
+
+        conf = extract.iloc[0]
+        self.assertEqual(int(conf["month"]), 8)
+        self.assertEqual(int(conf["year"]), 2003)
+        self.assertEqual(conf["short"], "ECDL 2003")
 
 
 if __name__ == "__main__":
