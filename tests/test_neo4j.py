@@ -28,10 +28,7 @@ test_data = """
 12;1046;the International Semantic Web Conference ;ISWC 2013;10.0;2013;[];AUS;http://www.wikidata.org/entity/Q48025934;The 12th International Semantic Web Conference;AUS;2013-10-21;2013-10-25 00:00:00;2013-10-21;ISWC 2013;10.0;2013.0 # noqa: E501
 """
 
-IN_CI = os.environ.get('CI', False)
 
-
-@unittest.skipIf(IN_CI, "Skip in CI")
 class TestNeo4j(unittest.TestCase):
     """
     test maintaining neo4j graph fro managing
