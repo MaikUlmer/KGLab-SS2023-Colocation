@@ -12,7 +12,7 @@ from colocation.neo4j_manager import Neo4jManager
 import pandas as pd
 import argparse
 
-THREASHOLD = 0.7
+THREASHOLD = 0.8
 
 if __name__ == "__main__":
 
