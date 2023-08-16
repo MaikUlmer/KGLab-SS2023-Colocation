@@ -154,13 +154,6 @@ def format_frame(df: pd.DataFrame, renaming: Dict[str, str]) -> pd.DataFrame:
     """
     df = df.rename(columns=renaming)
 
-    def time_extraction(text: str, index: int):
-        """
-        Extract the year or month from the loctime attribute
-        """
-        if not text: return None
-        else: return text.split('-')[index]
-
     df.loc[pd.isna(df['timepoint']), "timepoint"] = df["start"]
     df.loc[pd.isna(df['timepoint']), "timepoint"] = df["end"]
     df.loc[pd.isna(df['timepoint']), "timepoint"] = None
