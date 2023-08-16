@@ -105,6 +105,70 @@ class TestMatcher(unittest.TestCase):
         self.assertTrue(res.shape[0] > 0)
         self.assertTrue(res.shape[0] < 654)
 
+    def test_dataframe_matching(self):
+        """
+        test for two specific dataframes, whether they are properly matched.
+        """
+        matcher = Matcher(types_to_match=["stefan"])
+
+        wikidata = [
+            {
+                "conference": "http://www.wikidata.org/entity/Q106610753",
+                "countryISO3": "AUT",
+                "month": 3,
+                "year": 2015,
+                "short": "ECIR 2015",
+                "title": "37th European Conference on IR Research, ECIR 2015, Vienna, Austria, March 29 - April 2, 2015"
+            }
+        ]
+        dblp = [
+            {
+                "dblp_id": "https://dblp.org/rec/conf/ecir/2015",
+                "title": "Advances in Information Retrieval - 37th European Conference on IR Research,\
+ECIR 2015, Vienna, Austria, March 29 - April 2, 2015. Proceedings",
+                "month": 3.0,
+                "year": 2015.0,
+                "short": "ECIR 2015",
+                "countryISO3": "AUT"
+            }
+        ]
+
+        result = matcher.match_dataframes(pd.DataFrame(wikidata), pd.DataFrame(dblp), 0.7)
+        self.assertEqual(result.shape[0], 1)
+        self.assertListEqual(matcher.matchtypes, ["stefan"])
+
+    def test_dataframe_non_matching_year(self):
+        """
+        test for two specific dataframes, that they are not matched because of their year.
+        """
+        matcher = Matcher(types_to_match=["stefan"])
+
+        wikidata = [
+            {
+                "conference": "http://www.wikidata.org/entity/Q106610753",
+                "countryISO3": "AUT",
+                "month": 3,
+                "year": 2015,
+                "short": "ECIR 2015",
+                "title": "37th European Conference on IR Research, ECIR 2015, Vienna, Austria, March 29 - April 2, 2015"
+            }
+        ]
+        dblp = [
+            {
+                "dblp_id": "https://dblp.org/rec/conf/ecir/2015",
+                "title": "Advances in Information Retrieval - 37th European Conference on IR Research,\
+ECIR 2015, Vienna, Austria, March 29 - April 2, 2015. Proceedings",
+                "month": 3.0,
+                "year": 2004.0,
+                "short": "stefan",
+                "countryISO3": "AUT"
+            }
+        ]
+
+        result = matcher.match_dataframes(pd.DataFrame(wikidata), pd.DataFrame(dblp), 0.01)
+        self.assertEqual(result.shape[0], 0)
+        self.assertListEqual(matcher.matchtypes, ["stefan"])
+
     @unittest.skipIf(IN_CI, "Skip in CI environment")
     def test_workshop_dblp_linking(self):
         """

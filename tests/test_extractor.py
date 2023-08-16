@@ -350,6 +350,7 @@ class TestMatcher(unittest.TestCase):
             for countryISO3 in list(df["countryISO3"]):
                 self.assertIsInstance(countryISO3, str)
 
+
 class TestTitleExtractor(unittest.TestCase):
     """
     Test the attribute extraction capabilities of TitleExtractor.

@@ -60,13 +60,21 @@ class ColocationExtractor():
         self.volumes_lod = volumes_lod
         self.extract_info()
 
-    def get_colocation_info(self):
+    def get_colocation_info(self) -> List[Dict]:
         """
         Returns:
             list: the list of dicts containing the extracted colocation information
                 for the relevant volumes.
         """
         return self.colocation_lod
+
+    def get_colocation_volume_numbers(self) -> List[int]:
+        """
+        Returns:
+            list: the list of dicts containing the volume numbers of all volumes
+                  for which this instance has extracted information.
+        """
+        return [workshop["number"] for workshop in self.colocation_lod]
 
     def find_wikidata_event(self):
         """
@@ -405,9 +413,10 @@ class TitleExtractor():
         processor = ExtractionProcessor(event_lod)
 
         extract: pd.DataFrame = processor.get_loctime_info(self.keyword)
-        extract = extract.drop(columns="title")  # we will take the title from the original events
+        # we will take the title from the original events
+        extract = extract.drop(columns=["title", "dates"])
 
-        events.drop(columns=["loctime", self.keyword])
+        events = events.drop(columns=["loctime", self.keyword])
         if not number:
             extract = extract.drop(columns="number")
             events = events.drop(columns="number")
