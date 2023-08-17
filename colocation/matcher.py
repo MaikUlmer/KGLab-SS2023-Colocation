@@ -118,6 +118,10 @@ class Matcher:
         w = workshops.copy()
         c = conferences.copy()
 
+        # reset the index of the dataframes in case they have been modified before
+        w = w.reset_index(drop=True)
+        c = c.reset_index(drop=True)
+
         # mark found matches
         w["W.partner"] = np.nan
         c["C.partner"] = np.nan
@@ -131,7 +135,7 @@ class Matcher:
                     int(workshop["W.year"]) == int(conference["C.year"])):
 
                 # check whether conference has already matched against another workshop
-                if pd.notna(a := (c.iloc[match[1] - len_work]["C.partner"])):
+                if pd.notna(a := c.at[match[1] - len_work, "C.partner"]):
                     num = a
                 w.at[match[0], "W.partner"] = num
                 c.at[match[1] - len_work, "C.partner"] = num
