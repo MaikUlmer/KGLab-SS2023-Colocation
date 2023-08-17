@@ -129,12 +129,19 @@ class Matcher:
 
             if (pd.notna(workshop["W.year"]) and pd.notna(conference["C.year"]) and
                     int(workshop["W.year"]) == int(conference["C.year"])):
+
+                # check whether conference has already matched against another workshop
+                if pd.notna(a := (c.iloc[match[1] - len_work]["C.partner"])):
+                    num = a
                 w.at[match[0], "W.partner"] = num
                 c.at[match[1] - len_work, "C.partner"] = num
 
         # now remove all unmatched rows
         w = w[pd.notna(w["W.partner"])]
         c = c[pd.notna(c["C.partner"])]
+
+        print(w)
+        print(c)
 
         # finally try to match on identifiers
         match1 = w.merge(c, left_on=["W.partner", "W.countryISO3"], right_on=["C.partner", "C.countryISO3"])

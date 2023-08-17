@@ -78,6 +78,50 @@ class TestMatcher(unittest.TestCase):
         self.assertTrue(res.shape[0] == 1)
         self.assertTrue(str(res["C.title"].iloc[0]) == "29th international conference VLDB 2003, Berlin, Germany.")
 
+    def test_fuzzy_multiple_matches(self):
+        """
+        test that fuzzy matching can match multiple workshops to the same conference.
+        """
+        workshop_lod = [
+            {
+                "W.short": f"VLDB {i}",
+                "W.title": f"29th {i} Intl. Conf. VLDB 2003, Berlin, Germany, September, 12-13, 2003.",
+                "W.countryISO3": "GER",
+                "W.year": 2003,
+                "W.month": "September"
+            } for i in range(2)
+        ]
+        conference_lod = [
+            {
+                "C.short": "VLDB",
+                "C.title": "29th Intl. Conf. VLDB 2003, Berlin, Germany, September, 12-13, 2003.",
+                "C.countryISO3": "GER",
+                "C.year": 2003,
+                "C.month": "September"
+            },
+            {
+                "C.short": "",
+                "C.title": "A dummy title to lower the document frequency of other words.",
+                "C.countryISO3": "None",
+                "C.year": None,
+                "C.month": None
+            },
+            {
+                "C.short": "STFN",  # another dummy to get past stopword filter
+                "C.title": "10th international Conf. STFN 2004, Sydney, Australia",
+                "C.countryISO3": "None",
+                "C.year": 2004,
+                "C.month": None
+            }
+        ]
+
+        workshops = pd.DataFrame(workshop_lod)
+        conferences = pd.DataFrame(conference_lod)
+        matcher = Matcher()
+        res = matcher.fuzzy_title_matching(workshops, conferences, threshold=0.6)
+        self.assertEqual(res.shape[0], 2,
+                         msg="Fuzzy matching cannot handle when multiple workshops match against a conference.")
+
     def test_matcher(self):
         """
         test matcher on two smaller keywords
