@@ -140,9 +140,6 @@ class Matcher:
         w = w[pd.notna(w["W.partner"])]
         c = c[pd.notna(c["C.partner"])]
 
-        print(w)
-        print(c)
-
         # finally try to match on identifiers
         match1 = w.merge(c, left_on=["W.partner", "W.countryISO3"], right_on=["C.partner", "C.countryISO3"])
         match2 = w.merge(c, left_on=["W.partner", "W.month"], right_on=["C.partner", "C.month"])
