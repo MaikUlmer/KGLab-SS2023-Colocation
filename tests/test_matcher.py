@@ -255,7 +255,7 @@ ECIR 2015, Vienna, Austria, March 29 - April 2, 2015. Proceedings",
             }
         ]
         matcher = Matcher()
-        result = matcher.link_workshops_dblp_conferences(workshops, "stefan", reload=True)
+        result = matcher.link_workshops_dblp_conferences(workshops, "stefan", query_name="test", reload=True)
         self.assertIsInstance(result, pd.DataFrame)
         self.assertTrue(result.shape[0] > 0,
                         msg="The linking produced not a single link.")
