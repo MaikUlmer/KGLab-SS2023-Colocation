@@ -247,6 +247,30 @@ class TestNeo4j(unittest.TestCase):
         self.assertEqual(len(data), 1,
                          msg="Connectivity heuristic created unexpected number of links.")
 
+    def test_link_match_deletion(self):
+        """
+        test that link relationship can replace matched relationship
+        """
+        wikidata = pd.DataFrame(data=[{"W.wid": 1}])
+        dblp = pd.DataFrame(data=[{"C.did": 1}])
+        match = wikidata.merge(dblp, how="cross")
+
+        neo = Neo4jManager(delete_nodes=True)
+        neo.add_matched_nodes_undirected(
+            match, "wid", "did", "Wikidata", "Dblp"
+        )
+        neo.add_matched_nodes_undirected(
+            match, "wid", "did", "Wikidata", "Dblp", relation_type="linked"
+        )
+        neo.delete_match_when_linked("Wikidata", "Dblp")
+        matched = self.graph.run("match (n)-[:MATCHES]->(m) return count(n)").evaluate()
+        linked = self.graph.run("match (n)-[:LINKED]->(m) return count(n)").evaluate()
+
+        self.assertEqual(matched, 0,
+                         msg="Some match was not properly deleted.")
+        self.assertEqual(linked, 2,
+                         msg="Some link was somehow deleted.")
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
