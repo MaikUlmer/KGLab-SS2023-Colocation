@@ -3,6 +3,7 @@ Created on 2023-07-21
 @author: nm
 '''
 from py2neo import Graph, Node, Relationship
+from py2neo.bulk import merge_nodes
 from .cache_manager import CsvCacheManager
 import pandas as pd
 from typing import List, Tuple
@@ -24,6 +25,7 @@ class Neo4jManager:
         """
         # self.graph = Graph("bolt://localhost:7687", auth=('neo4j', password))
         self.graph = Graph()
+        self.result_serializer = CsvCacheManager(base_folder="results")
         if delete_nodes:
             self.graph.delete_all()
 
@@ -240,3 +242,25 @@ create (w)<-[:LINKED]-(d)
         """
         query = "match (r:Dblp)-[:LINKED]->(v:Dblp) set v:Virtual"
         self.graph.run(query)
+
+    def add_ceur_attributes(self, volumes: List[dict]):
+        """
+        Matches the already present Ceur-WS volumes and adds their information
+        into the neo4j graph for better result readability.
+
+        Args:
+            volumes(list(dict)): Ceur-WS volumes lod.
+        """
+        lod = [vol.copy() for vol in volumes]
+
+        # get the volumes actually present in the neo4j server
+        data = self.graph.run("match (a:`Ceur-WS`) return a.`Ceur-WS`").data()
+        present = [vol["a.`Ceur-WS`"] for vol in data]
+
+        for volume in lod:
+            volume["Ceur-WS"] = volume.pop("number")
+
+        # only retain present volumes
+        lod = [volume for volume in lod if volume["Ceur-WS"] in present]
+
+        merge_nodes(self.graph.auto(), lod, merge_key=("Ceur-WS", "Ceur-WS"))

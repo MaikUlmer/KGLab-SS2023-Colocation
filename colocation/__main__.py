@@ -34,12 +34,10 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     ###########################
     # get Ceur-WS information #
     ###########################
-
     print("Getting Ceur-WS volumes.")
 
     cacher = JsonCacheManager()
     volumes = cacher.reload_lod("volumes") if reload else cacher.load_lod("volumes")
-
     extractor = ColocationExtractor(volumes)
     colocation_lod = extractor.get_colocation_info()
 
@@ -167,3 +165,4 @@ their co-located conference using Wikidata and Dblp as additional datasources."
         threshold=LINK_THREASHOLD
     )
     neo.delete_match_when_linked("Wikidata", "Dblp")
+    neo.add_ceur_attributes(volumes)
