@@ -3,7 +3,7 @@ Created on 2023-07-21
 @author: nm
 '''
 from py2neo import Graph, Node, Relationship
-from .cache_manager import JsonCacheManager
+from .cache_manager import CsvCacheManager
 import pandas as pd
 from typing import List, Tuple
 
@@ -188,11 +188,11 @@ return d, w1, w2
 
         if not len(data) == 0:
             print("\nThe connectivity heuristic would link one node to at least two different ones.")
-            print("The results problematic data will be saved in the home directory in .ceurws/conflicts.json")
+            print("The results problematic data will be saved in the home directory in .ceurws/conflicts.csv")
             print("Check if perhaps some incorrect data is present and correct it.")
             print("Conflict nodes will be ignored in the heuristic.")
-            cacher = JsonCacheManager()
-            cacher.store_lod("conflicts", data)
+            cacher = CsvCacheManager()
+            cacher.store_csv("conflicts", pd.DataFrame(data=data))
 
             # if the type was wrapped, we need to unwrap it to access the variable
             if type_linked[0] == "`":

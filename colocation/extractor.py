@@ -156,7 +156,8 @@ class ExtractionProcessor():
         Args:
             extract_lod(list(dict)): extract of the events of interest
         """
-        self.remaining_events = extract_lod
+        # we need a shallow copy to reuse the lod elsewhere
+        self.remaining_events = extract_lod.copy()
 
         self.nlp = spacy.load("en_core_web_sm")
         self.year_regex = re.compile("[0-9]{4}")

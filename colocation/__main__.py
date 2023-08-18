@@ -4,7 +4,7 @@ Created on 2023-08-16
 
 Main function of the colocation project.
 '''
-from colocation.dataloaders.wikidata_loader import get_workshop_ids_from_lod, get_wikidata_conferences
+from colocation.dataloaders.wikidata_loader import get_wikidata_conferences
 from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor, ExtractionProcessor, TitleExtractor
 from colocation.matcher import Matcher
@@ -42,8 +42,6 @@ their co-located conference using Wikidata and Dblp as additional datasources."
 
     extractor = ColocationExtractor(volumes)
     colocation_lod = extractor.get_colocation_info()
-    numbers = extractor.get_colocation_volume_numbers()
-    wikidata_ids = get_workshop_ids_from_lod(colocation_lod)
 
     colocation_processor = ExtractionProcessor(colocation_lod)
 
