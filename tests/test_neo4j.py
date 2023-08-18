@@ -4,7 +4,6 @@ Created on 2023-07-21
 @author: nm
 '''
 import unittest
-import os
 import pandas as pd
 from io import StringIO
 from py2neo import Graph
@@ -137,6 +136,116 @@ class TestNeo4j(unittest.TestCase):
         link_query = "match (n)-[:LINKED]->(c) return n"
         conferences = self.graph.run(link_query).data()
         self.assertGreater(len(conferences), 0)
+
+    def test_connectivity_check(self):
+        """
+        test that the connectivity check properly recognizes
+        an example of size 3
+        """
+        # create 3 workshops linked to one dblp node and
+        # matched to two wikidata nodes
+        workshops = pd.DataFrame(data=[{"W.id": 1}, {"W.id": 2}, {"W.id": 3}])
+        wikidata = pd.DataFrame(data=[{"C.wid": 1}, {"C.wid": 2}])
+        dblp = pd.DataFrame(data=[{"C.did": 1}])
+
+        wowi = workshops.merge(wikidata, how="cross")
+        wodb = workshops.merge(dblp, how="cross")
+
+        neo = Neo4jManager(delete_nodes=True)
+        neo.add_matched_nodes(
+            wowi, "id", "wid", "Ceur-WS", "Wikidata"
+        )
+        neo.add_matched_nodes(
+            wodb, "id", "did", "Ceur-WS", "Dblp", relation_type="linked"
+        )
+
+        res = neo.check_uniqueness_workshop_connectivity(
+            "`Ceur-WS`", "Wikidata", "Dblp"
+        )
+        self.assertEqual(len(res), 1,
+                         msg="Connectivity check fails on size 3 object.")
+
+    def test_non_connectivity_establishment_interwoven(self):
+        """
+        test that the connectivity heuristic is not executed for
+        an example of two interwoven groups of size 3
+        """
+
+        # same as test_connectivity_check
+        workshops = pd.DataFrame(data=[{"W.id": 1}, {"W.id": 2}, {"W.id": 3}])
+        wikidata = pd.DataFrame(data=[{"C.wid": 1}, {"C.wid": 2}])
+        dblp = pd.DataFrame(data=[{"C.did": 1}])
+        # proper structure
+        wikidata_2 = pd.DataFrame(data=[{"C.wid": 3}])
+        dblp_2 = pd.DataFrame(data=[{"C.did": 3}])
+
+        wowi = workshops.merge(wikidata, how="cross")
+        wodb = workshops.merge(dblp, how="cross")
+        wowi_2 = workshops.merge(wikidata_2, how="cross")
+        wodb_2 = workshops.merge(dblp_2, how="cross")
+
+        wowi = pd.concat([wowi, wowi_2])
+        wodb = pd.concat([wodb, wodb_2])
+
+        neo = Neo4jManager(delete_nodes=True)
+        neo.add_matched_nodes(
+            wowi, "id", "wid", "Ceur-WS", "Wikidata"
+        )
+        neo.add_matched_nodes(
+            wodb, "id", "did", "Ceur-WS", "Dblp", relation_type="linked"
+        )
+
+        neo.create_link_by_workshop_connectivity(
+            "Ceur-WS", "Wikidata", "Dblp"
+        )
+
+        res_query = "match (w:Wikidata)-[:LINKED]->(d:Dblp) return *"
+        data = Graph().run(res_query).data()
+
+        self.assertEqual(len(data), 0,
+                         msg="Connectivity heuristic should not create links.")
+
+    def test_connectivity_establishment(self):
+        """
+        test that the connectivity heuristic is executed correctly for
+        an example of size 3, where one complex should be linked and
+        the other one not.
+        """
+
+        # same as test_connectivity_check
+        workshops = pd.DataFrame(data=[{"W.id": 1}, {"W.id": 2}, {"W.id": 3}])
+        wikidata = pd.DataFrame(data=[{"C.wid": 1}, {"C.wid": 2}])
+        dblp = pd.DataFrame(data=[{"C.did": 1}])
+        # proper structure
+        workshops_2 = pd.DataFrame(data=[{"W.id": 4}, {"W.id": 5}, {"W.id": 6}])
+        wikidata_2 = pd.DataFrame(data=[{"C.wid": 3}])
+        dblp_2 = pd.DataFrame(data=[{"C.did": 3}])
+
+        wowi = workshops.merge(wikidata, how="cross")
+        wodb = workshops.merge(dblp, how="cross")
+        wowi_2 = workshops_2.merge(wikidata_2, how="cross")
+        wodb_2 = workshops_2.merge(dblp_2, how="cross")
+
+        wowi = pd.concat([wowi, wowi_2])
+        wodb = pd.concat([wodb, wodb_2])
+
+        neo = Neo4jManager(delete_nodes=True)
+        neo.add_matched_nodes(
+            wowi, "id", "wid", "Ceur-WS", "Wikidata"
+        )
+        neo.add_matched_nodes(
+            wodb, "id", "did", "Ceur-WS", "Dblp", relation_type="linked"
+        )
+
+        neo.create_link_by_workshop_connectivity(
+            "Ceur-WS", "Wikidata", "Dblp"
+        )
+
+        res_query = "match (w:Wikidata)-[:LINKED]->(d:Dblp) return *"
+        data = Graph().run(res_query).data()
+
+        self.assertEqual(len(data), 1,
+                         msg="Connectivity heuristic created unexpected number of links.")
 
 
 if __name__ == "__main__":

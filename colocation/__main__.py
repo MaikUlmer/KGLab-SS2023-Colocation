@@ -12,7 +12,8 @@ from colocation.neo4j_manager import Neo4jManager
 import pandas as pd
 import argparse
 
-THREASHOLD = 0.8
+MATCH_THREASHOLD = 0.7
+LINK_THREASHOLD = 3
 
 if __name__ == "__main__":
 
@@ -68,7 +69,7 @@ their co-located conference using Wikidata and Dblp as additional datasources."
         remove_function=colocation_processor.remove_events_by_keys,
         remove_key="number",
         conferences=wikidata_conferences,
-        threshold=THREASHOLD,
+        threshold=MATCH_THREASHOLD,
         reload=reload,
         save_name="Ceur_Wikidata"
     )
@@ -91,21 +92,21 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     )
 
     # try to link Ceur-Ws to dblp conference proceedings
-    print("Link Ceur-Ws to Dblp conferences.")
+    print("Linking Ceur-Ws to Dblp conferences.")
 
     links_workshop_dblp = matcher.link_workshops_dblp_conferences(
         colocation_lod, reload=reload
     )
 
     # link split dblp confernece proceedings to virtual node for the entire proceeding
-    print("Link Dblp conferences and virtual nodes.")
+    print("Linking Dblp conferences and virtual nodes.")
 
     dblp_virtual_links = matcher.link_dblp_split_proceedings(
         potential_virtual_nodes=links_workshop_dblp["C.conference_guess"]
     )
 
     # supplement the present dblp conferences with attributes for matching
-    print("Match Wikidata and Dblp conferences.")
+    print("Matching Wikidata and Dblp conferences.")
 
     linked_dblp_conferences_attributed = links_workshop_dblp[
         [c for c in links_workshop_dblp.columns if c[0:2] == "C."]
@@ -119,7 +120,7 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     match_dblp_wikidata = matcher.match_dataframes(
         linked_dblp_conferences_attributed,
         matched_wikidata_conferences,
-        threshold=THREASHOLD,
+        threshold=MATCH_THREASHOLD,
         reload=reload,
         save_name="Wikidata_Dblp"
     )
@@ -128,7 +129,7 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     # input results into Neo4j #
     ############################
 
-    print("Import results into Neo4j.")
+    print("Importing results into Neo4j.")
 
     neo = Neo4jManager()
 
@@ -153,3 +154,18 @@ their co-located conference using Wikidata and Dblp as additional datasources."
         source_w="Dblp", source_c="Wikidata",
         type_w="conference", type_c="conference"
     )
+
+    ######################
+    # editing graph data #
+    ######################
+
+    print("Editing Neo4j data.")
+
+    neo.set_dblp_virtual()
+    neo.create_link_by_workshop_connectivity(
+        type_workshop="Ceur-WS",
+        type_matched="Wikidata",
+        type_linked="Dblp",
+        threshold=LINK_THREASHOLD
+    )
+    neo.delete_match_when_linked("Wikidata", "Dblp")
