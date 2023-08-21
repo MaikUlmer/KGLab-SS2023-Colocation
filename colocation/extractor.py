@@ -6,11 +6,11 @@ import country_converter as coco
 from typing import List, Dict
 
 
-matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
+matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "part", "affiliated", "at"]
 matchregexes = {}
 
 matchregexes[matchtypes[0]] = re.compile(
-    "(?:(?:co-located|colocated) with) (.*)"
+    "(?:(?:co-located|colocated|collocated) with) (.*)"
 )
 matchregexes[matchtypes[1]] = re.compile(
     "(?:hosted by )(.*)"
@@ -25,6 +25,12 @@ matchregexes[matchtypes[4]] = re.compile(
     "(\w* @ .*)"
 )
 matchregexes[matchtypes[5]] = re.compile(
+    "(?:part of )(.*)"
+)
+matchregexes[matchtypes[6]] = re.compile(
+    "(?:affiliated (?:with|to) )(.*)"
+)
+matchregexes[matchtypes[7]] = re.compile(
     "(\w* at .*)"
 )
 
