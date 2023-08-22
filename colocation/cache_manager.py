@@ -16,14 +16,16 @@ class JsonCacheManager():
     """
     cache json based volume information
     """
-    def __init__(self, base_url: str = "http://cvb.bitplan.com"):
+    def __init__(self, base_url: str = "http://cvb.bitplan.com", base_folder: Union[str, None] = None):
         """
         constructor
 
         Args:
             base_url(str): base url of json provider
+            base_folder(str|None): folder to put cached files into
         """
         self.base_url = base_url
+        self.base_folder = base_folder
 
     def json_path(self, lod_name: str) -> str:
         """
@@ -36,6 +38,8 @@ class JsonCacheManager():
             str: the path to the lust of dicts cache
         """
         root_path = f"{Path.home()}/.ceurws"
+        if self.base_folder:
+            root_path += f"/{self.base_folder}"
         os.makedirs(root_path, exist_ok=True)  # make directory if it does not exist
         json_path = f"{root_path}/{lod_name}.json"
         return json_path
