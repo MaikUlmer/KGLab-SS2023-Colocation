@@ -243,24 +243,34 @@ create (w)<-[:LINKED]-(d)
         query = "match (r:Dblp)-[:LINKED]->(v:Dblp) set v:Virtual"
         self.graph.run(query)
 
-    def add_ceur_attributes(self, volumes: List[dict]):
+    def add_ceur_attributes(self, volumes: List[dict], colocation_lod: List[dict]):
         """
         Matches the already present Ceur-WS volumes and adds their information
         into the neo4j graph for better result readability.
 
         Args:
             volumes(list(dict)): Ceur-WS volumes lod.
+            colocation_lod(list(dict)): Ceur-Ws extract
         """
+        # make a deep copy to modify the volume properties
         lod = [vol.copy() for vol in volumes]
+
+        # map volume number to wikidata uri(s)
+        number_wikidata_map = {volume["number"]: volume["wikidata_event"] for volume in colocation_lod}
+        number_wikidata_map = {num: wiki if wiki else "" for num, wiki in number_wikidata_map.items()}
+
+        number_proceedings_map = {volume["number"]: volume["wikidata_proceedings"] for volume in colocation_lod}
 
         # get the volumes actually present in the neo4j server
         data = self.graph.run("match (a:`Ceur-WS`) return a.`Ceur-WS`").data()
         present = [vol["a.`Ceur-WS`"] for vol in data]
 
+        # only retain present volumes
+        lod = [volume for volume in lod if volume["number"] in present]
+
         for volume in lod:
             volume["Ceur-WS"] = volume.pop("number")
-
-        # only retain present volumes
-        lod = [volume for volume in lod if volume["Ceur-WS"] in present]
+            volume["Wikidata"] = number_wikidata_map[volume["Ceur-WS"]]
+            volume["Proceedings"] = number_proceedings_map[volume["Ceur-WS"]]
 
         merge_nodes(self.graph.auto(), lod, merge_key=("Ceur-WS", "Ceur-WS"))

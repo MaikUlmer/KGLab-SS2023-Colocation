@@ -6,7 +6,7 @@ Main function of the colocation project.
 '''
 from colocation.dataloaders.wikidata_loader import get_wikidata_conferences
 from colocation.cache_manager import JsonCacheManager
-from colocation.extractor import ColocationExtractor, ExtractionProcessor, TitleExtractor
+from colocation.extractor import ColocationExtractor, ExtractionProcessor
 from colocation.matcher import Matcher
 from colocation.neo4j_manager import Neo4jManager
 import pandas as pd
@@ -38,6 +38,8 @@ their co-located conference using Wikidata and Dblp as additional datasources."
 
     cacher = JsonCacheManager()
     volumes = cacher.reload_lod("volumes") if reload else cacher.load_lod("volumes")
+    if reload:
+        cacher.reload_lod("proceedings")
     extractor = ColocationExtractor(volumes)
     colocation_lod = extractor.get_colocation_info()
 
@@ -104,21 +106,21 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     # supplement the present dblp conferences with attributes for matching
     print("Matching Wikidata and Dblp conferences.")
 
-    linked_dblp_conferences_attributed = links_workshop_dblp[
+    linked_dblp_conferences = links_workshop_dblp[
         [c for c in links_workshop_dblp.columns if c[0:2] == "C."]
     ]
-    linked_dblp_conferences_attributed = linked_dblp_conferences_attributed.rename(
-        columns={old: old[2:] for old in linked_dblp_conferences_attributed.columns}
+    linked_dblp_conferences = linked_dblp_conferences.rename(
+        columns={old: old[2:] for old in linked_dblp_conferences.columns}
     )
-    linked_dblp_conferences_attributed = TitleExtractor().extract_attributes(linked_dblp_conferences_attributed)
 
     # match dblp against wikidata
-    match_dblp_wikidata = matcher.match_dataframes(
-        linked_dblp_conferences_attributed,
+    match_dblp_wikidata = matcher.match_dataframes_with_title_extract(
+        linked_dblp_conferences,
         matched_wikidata_conferences,
         threshold=MATCH_THREASHOLD,
         reload=reload,
-        save_name="Wikidata_Dblp"
+        save_name="Wikidata_Dblp",
+        to_extract=[1]
     )
 
     ############################
@@ -165,4 +167,4 @@ their co-located conference using Wikidata and Dblp as additional datasources."
         threshold=LINK_THREASHOLD
     )
     neo.delete_match_when_linked("Wikidata", "Dblp")
-    neo.add_ceur_attributes(volumes)
+    neo.add_ceur_attributes(volumes, colocation_lod)

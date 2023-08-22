@@ -7,8 +7,8 @@ import numpy as np
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from typing import Union, Callable, List, Dict
-from .extractor import matchtypes
+from typing import Union, Callable, List, Dict, Literal
+from .extractor import matchtypes, TitleExtractor
 from .dataloaders.dblp_loader import (get_dblp_workshops, get_dblp_conferences, verify_dblp_uris, verify_dblp_events,
                                       dblp_events_to_proceedings, dblp_proceedings_to_events)
 from .dataloaders.wikidata_loader import get_wikidata_dblp_info
@@ -30,6 +30,41 @@ class Matcher:
         self.matchtypes = types_to_match if types_to_match else matchtypes
         self.dblp_conferences = None
         self.cacher = CsvCacheManager(base_folder="matches")
+
+    def match_dataframes_with_title_extract(self, df1: pd.DataFrame, df2: pd.DataFrame, threshold: float,
+                                            reload: bool = False, save_name: str = "placeholder",
+                                            to_extract: List[Literal[1, 2]] = []) -> pd.DataFrame:
+        """
+        Matches events of the same type, so conferences with conferences and
+        workshops with workshops requiring df1 and df2 to have the columns
+        short, title, countryISO3, month, year.
+        Additionally gives the to_extract parameter. Title extraction will be applied to the
+        dataframes given here before matching is performed.
+
+        Args:
+            df1(pandas.DataFrame): dataframe with one side of the events.
+            df2(pandas.DataFrame): dataframe with the matching target.
+            threshold(float): threshold value when titles should be seen as similar.
+            reload(bool): whether to force reload match if cached version exists.
+            save_name(str): name of the cached file.
+            to_extract(list(int)): list of DataFrame indices on which to perform title extraction.
+        Returns:
+            pandas.DataFrame: DataFrame that holds the pairs that are matched to be the same type
+        """
+        if not reload:
+            cache = self.cacher.load_csv(save_name)
+            if cache is not None:
+                return cache
+
+        extractor = TitleExtractor()
+        df1 = extractor.extract_attributes(df1) if 1 in to_extract else df1
+        df2 = extractor.extract_attributes(df2) if 2 in to_extract else df2
+
+        matchres = self.match_dataframes(df1, df2, threshold, reload, save_name)
+
+        if save_name != "placeholder":
+            self.cacher.store_csv(save_name, matchres)
+        return matchres
 
     def match_dataframes(self, df1: pd.DataFrame, df2: pd.DataFrame, threshold: float,
                          reload: bool = False, save_name: str = "placeholder") -> pd.DataFrame:

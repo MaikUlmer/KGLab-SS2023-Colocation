@@ -88,27 +88,28 @@ class ColocationExtractor():
         their corresponding wikidata uri.
         """
         colocation_lod = self.colocation_lod
-        proceedings_map = {}
         missing_events = []
 
-        for proc in self.ceurWSProcs:
-            # Map volume number to wikidata uri for available volumes
-            proceedings_map[proc["sVolume"]] = proc["event"]
+        # Map volume number to wikidata uri for available volumes
+        event_map = {proc["sVolume"]: proc["event"] for proc in self.ceurWSProcs if proc["event"]}
+        proceedings_map = {proc["sVolume"]: proc["item"] for proc in self.ceurWSProcs}
 
         for volume in colocation_lod:
-            if volume["number"] in proceedings_map.keys():
-                uri = str(proceedings_map[volume["number"]]).split("|")
+            if volume["number"] in event_map.keys():
+                uri = str(event_map[volume["number"]]).split("|")
             else:
                 vol_name = f'Vol-{volume["number"]}'
                 vol = self.extra_provider.load_lod(vol_name)
 
-                if "wd.event" in vol.keys():
+                if "wd.event" in vol.keys() and vol["wd.event"]:
                     uri = str(vol["wd.event"]).split("|")
                 else:
                     uri = None
                     missing_events.append(volume)
 
             volume["wikidata_event"] = uri
+            volume["wikidata_proceedings"] = (
+                proceedings_map[volume["number"]] if volume["number"] in proceedings_map else "")
 
         self.missing_events = missing_events
 
