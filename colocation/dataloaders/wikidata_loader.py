@@ -19,8 +19,6 @@ def get_workshop_ids_from_lod(lod: List[Dict]) -> List[str]:
         lod(list(dict)): lod to extract workshop ids from
     """
 
-    # TODO handle wikidata not returning any result for certain ids
-
     found = [dici['wikidata_event'] for dici in lod]
     found = [f for f in found if f is not None]
     found = [event for events in found for event in events]
