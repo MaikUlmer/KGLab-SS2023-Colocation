@@ -68,17 +68,18 @@ class JsonCacheManager():
             lod = self.reload_lod(lod_name)
         return lod
 
-    def store_lod(self, lod_name: str, lod: List[Dict]):
+    def store_lod(self, lod_name: str, lod: List[Dict], indent: bool = False):
         """
         stores list of dicts according to the given name
 
         Args:
             lod_name(str): name of the list of dicts
             lod(list(dict)): list of dicts to cache
+            indent(bool): whether to format the json file to be readable
         """
         store_path = self.json_path(lod_name)
         with open(store_path, 'wb') as json_file:
-            json_str = orjson.dumps(lod)
+            json_str = orjson.dumps(lod) if not indent else orjson.dumps(lod, option=orjson.OPT_INDENT_2)
             json_file.write(json_str)
             pass
 
