@@ -22,7 +22,7 @@ matchregexes[matchtypes[3]] = re.compile(
     "(?:in conjunction with )(.*)"
 )
 matchregexes[matchtypes[4]] = re.compile(
-    "(\w* @ .*)"
+    "(?:\w* @ )(.*)"
 )
 matchregexes[matchtypes[5]] = re.compile(
     "(?:part of )(.*)"
@@ -31,7 +31,7 @@ matchregexes[matchtypes[6]] = re.compile(
     "(?:affiliated (?:with|to) )(.*)"
 )
 matchregexes[matchtypes[7]] = re.compile(
-    "(\w* at .*)"
+    "(?:\w* at )(.*)"
 )
 
 
