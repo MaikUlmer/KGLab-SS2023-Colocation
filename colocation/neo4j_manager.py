@@ -4,7 +4,7 @@ Created on 2023-07-21
 '''
 from py2neo import Graph, Node, Relationship
 from py2neo.bulk import merge_nodes
-from .cache_manager import CsvCacheManager
+from .cache_manager import CsvCacheManager, JsonCacheManager
 import pandas as pd
 from typing import List, Tuple
 
@@ -25,7 +25,7 @@ class Neo4jManager:
         """
         # self.graph = Graph("bolt://localhost:7687", auth=('neo4j', password))
         self.graph = Graph()
-        self.result_serializer = CsvCacheManager(base_folder="results")
+        self.result_serializer = JsonCacheManager(base_folder="results")
         if delete_nodes:
             self.graph.delete_all()
 
@@ -274,3 +274,48 @@ create (w)<-[:LINKED]-(d)
             volume["Proceedings"] = number_proceedings_map[volume["Ceur-WS"]]
 
         merge_nodes(self.graph.auto(), lod, merge_key=("Ceur-WS", "Ceur-WS"))
+
+    def serialize_results(self):
+        """
+        Queries the different types of results from the neo4j database
+        and serializes them via Json into a the folder $home/.ceurws/results.
+
+        There are two orthogonal properties to consider.
+        The first one is the quality of the result. Here we have how a workshop is connected:
+        wikidata + dblp with edge between them > wikidata + dblp without edge between them >
+        only dblp link > only wikidata match.
+        The second one is, whether the wikidata event entry of the volume is present.
+        """
+        result_serializer = self.result_serializer
+        graph = self.graph
+
+        for wikidata_present, logic_symbol in zip(["event_present", "event_missing"], ["<>", "="]):
+
+            types = ["fully_connected", "doubly_connected", "dblp_only", "wikidata_only"]
+            queries = [
+                f"""
+match (wikidata:Wikidata)<-[:MATCHES]-(ceur:`Ceur-WS`)-[:LINKED]->(d:Dblp)
+where (wikidata)-->(d) and ceur.Wikidata {logic_symbol} ''
+return ceur, wikidata
+                """,
+                f"""
+match (wikidata:Wikidata)<-[:MATCHES]-(ceur:`Ceur-WS`)-[:LINKED]->(d:Dblp)
+where not (wikidata)-->(d) and ceur.Wikidata {logic_symbol} ''
+return ceur, wikidata
+                """,
+                f"""
+match (ceur:`Ceur-WS`)-[:LINKED]->(dblp:Dblp)
+where not (:Wikidata)<-[:MATCHES]-(ceur) and ceur.Wikidata {logic_symbol} ''
+return ceur, dblp
+                """,
+                f"""
+match (wikidata:Wikidata)<-[:MATCHES]-(ceur:`Ceur-WS`)
+where not (ceur)-[:LINKED]->(:Dblp) and ceur.Wikidata {logic_symbol} ''
+return *
+                """
+            ]
+
+            for typ, query in zip(types, queries):
+
+                data = graph.run(query).to_data_frame().to_dict(orient='records')
+                result_serializer.store_lod(f"{typ}_{wikidata_present}", data, indent=True)
