@@ -4,6 +4,7 @@ Created on 2023-08-22
 @author: nm
 '''
 import unittest
+import os
 from pathlib import Path
 import orjson
 from colocation.result_processor import ResultProcessor
@@ -24,7 +25,9 @@ class TestResultProcessor(unittest.TestCase):
         """
         test that the pairs are correctly extracted
         """
-        store_path = f"{Path.home()}/.ceurws/results/test.json"
+        root_path = f"{Path.home()}/.ceurws/results"
+        store_path = f"{root_path}/test.json"
+        os.makedirs(root_path, exist_ok=True)
 
         data = [
             {
