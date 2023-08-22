@@ -428,6 +428,7 @@ class Matcher:
         # save the supplied info
         self.wikidata_supplement = wikidata_conferences[
             ["conference", "proc", "dblp_event_supplement", "dblp_proceedings_supplement"]]
+        self.cacher.store_csv("Wikidata_dblp_supplement", wikidata_conferences)
 
         # enrich the result using the additional info from the conference query
         self.dblp_conferences = (
