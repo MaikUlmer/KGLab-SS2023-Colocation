@@ -8,19 +8,17 @@ import os
 from pathlib import Path
 from colocation.cache_manager import JsonCacheManager
 
+
 class TestMatcher(unittest.TestCase):
     """
-    test download and caching
+    test download and caching Ceur-WS
     """
-
 
     def setUp(self):
         pass
 
-
     def tearDown(self):
         pass
-
 
     def testCacher(self):
         """
@@ -36,10 +34,9 @@ class TestMatcher(unittest.TestCase):
 
         cacher.store_lod(lod_name, lod)
         self.assertTrue(os.path.isfile(f"{Path.home()}/.ceurws/volumes.json"))
-        
+
         pass
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
