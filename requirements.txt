@@ -6,3 +6,4 @@ py2neo>=2021.2.3
 scikit_learn>=1.3.0
 spacy>=3.6.0
 pylodstorage>=0.4.11
+wikibaseintegrator==0.12.4
