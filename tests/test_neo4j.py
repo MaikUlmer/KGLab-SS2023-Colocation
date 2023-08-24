@@ -290,7 +290,7 @@ class TestNeo4j(unittest.TestCase):
         neo.add_ceur_attributes([{"number": 2929}],
                                 [{"number": 2929, "wikidata_event": None, "wikidata_proceedings": None}])
 
-        neo.add_missing_wikidata_event()
+        neo.add_missing_wikidata_event(reload=True)
 
         res = neo.graph.nodes.match("Ceur-WS").first()
         self.assertNotEqual(res["Wikidata"], "",

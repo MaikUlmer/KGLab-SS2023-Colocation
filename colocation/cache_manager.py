@@ -79,7 +79,8 @@ class JsonCacheManager():
         """
         store_path = self.json_path(lod_name)
         with open(store_path, 'wb') as json_file:
-            json_str = orjson.dumps(lod) if not indent else orjson.dumps(lod, option=orjson.OPT_INDENT_2)
+            json_str = (orjson.dumps(lod, default=str) if not indent
+                        else orjson.dumps(lod, option=orjson.OPT_INDENT_2, default=str))
             json_file.write(json_str)
             pass
 
