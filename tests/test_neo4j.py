@@ -3,12 +3,15 @@ Created on 2023-07-21
 
 @author: nm
 '''
+import os
 import unittest
 import pandas as pd
 from io import StringIO
 from py2neo import Graph
 from colocation.neo4j_manager import Neo4jManager
 from colocation.matcher import Matcher
+
+IN_CI = os.environ.get('CI', False)
 
 test_data = """
 ;W.number;W.title;W.short;W.month;W.year;W.dates;W.countryISO3;C.conference;C.title;C.countryISO3;C.start;C.end;C.timepoint;C.short;C.month;C.year # noqa: E501
@@ -270,6 +273,33 @@ class TestNeo4j(unittest.TestCase):
                          msg="Some match was not properly deleted.")
         self.assertEqual(linked, 2,
                          msg="Some link was somehow deleted.")
+
+    @unittest.skipIf(IN_CI, "Skip in CI environment")
+    def test_wikidata_supplement(self):
+        """
+        test supplementing wikidata event using SPARQL query.
+        """
+        workshops = pd.DataFrame(data=[{"W.id": 2929}])  # actual example
+        wikidata = pd.DataFrame(data=[{"C.wid": 1}])
+        edge = workshops.merge(wikidata, how='cross')
+
+        neo = Neo4jManager(delete_nodes=True)
+        neo.add_matched_nodes(
+            edge, "id", "wid", "Ceur-WS", "Wikidata"
+        )
+        neo.add_ceur_attributes([{"number": 2929}],
+                                [{"number": 2929, "wikidata_event": None, "wikidata_proceedings": None}])
+
+        neo.add_missing_wikidata_event()
+
+        res = neo.graph.nodes.match("Ceur-WS").first()
+        self.assertNotEqual(res["Wikidata"], "",
+                            msg=f"The node event was not properly supplied.\
+                            Instead the node has the following attributes: {res}")
+
+        count2 = neo.graph.nodes.match("Ceur-WS").count()
+        self.assertEqual(count2, 1,
+                         msg="The merge operation failed and introduced an additional node.")
 
 
 if __name__ == "__main__":

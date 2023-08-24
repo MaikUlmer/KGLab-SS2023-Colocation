@@ -5,6 +5,7 @@ Created on 2023-07-21
 from py2neo import Graph, Node, Relationship
 from py2neo.bulk import merge_nodes
 from .cache_manager import CsvCacheManager, JsonCacheManager
+from .dataloaders.wikidata_loader import get_wikidata_workshops_by_number
 import pandas as pd
 from typing import List, Tuple
 
@@ -242,6 +243,26 @@ create (w)<-[:LINKED]-(d)
         """
         query = "match (r:Dblp)-[:LINKED]->(v:Dblp) set v:Virtual"
         self.graph.run(query)
+
+    def add_missing_wikidata_event(self, reload: bool = False):
+        """
+        Uses a SPARQL query to find the event associated to the Ceur-WS series entry
+        to supply the workshops with missing Wikidata events.
+
+        Args:
+            reload(bool): whether to force reload the underlying query instead of using the cached file.
+        """
+        data = self.graph.run(
+            "match (c:`Ceur-WS` {Wikidata: ''}) return c.`Ceur-WS`"
+        ).data()
+        numbers = [entry["c.`Ceur-WS`"] for entry in data]
+        numbers.sort()
+
+        name = "missing_events-" + "-".join(str(n) for n in numbers)
+        result = get_wikidata_workshops_by_number(numbers, name, reload)
+        result = result.to_dict(orient='records')
+
+        merge_nodes(self.graph.auto(), result, merge_key=("Ceur-WS", "Ceur-WS"))
 
     def add_ceur_attributes(self, volumes: List[dict], colocation_lod: List[dict]):
         """

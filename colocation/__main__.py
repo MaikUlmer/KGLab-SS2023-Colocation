@@ -168,6 +168,7 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     )
     neo.delete_match_when_linked("Wikidata", "Dblp")
     neo.add_ceur_attributes(volumes, colocation_lod)
+    neo.add_missing_wikidata_event(reload)
 
     ######################
     # processing results #

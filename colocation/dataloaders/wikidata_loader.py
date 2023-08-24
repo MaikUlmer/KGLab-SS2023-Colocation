@@ -87,6 +87,57 @@ WHERE
         return Exception(ex)
 
 
+def get_wikidata_workshops_by_number(workshop_numbers: List[int], name: str, reload: bool = False) -> pd.DataFrame:
+    """
+    Use a SPARQL query to get as many workshops from the given list of ids as possible.
+    Cache the result using the specified name and reuse, unless reload is specified.
+
+    Args:
+        workshop_ids(list(str)) : list of the CEUR-WS series number of the workshops
+        name(str) : name to differentiate queries for different purposes
+        reload(bool) : whether to force reload the workshops instead of taking from cache
+    """
+    root_path = f"{Path.home()}/.ceurws"
+    os.makedirs(root_path, exist_ok=True)
+    store_path = root_path + f"/wikidata_{name}.csv"
+
+    if os.path.isfile(store_path) and not reload:
+        return pd.read_csv(store_path)
+
+    workshop_numbers = [f'"{num}"' for num in workshop_numbers]
+
+    workshop_query = {
+        "lang": "sparql",
+        "name": "WS",
+        "title": "Workshops",
+        "description": "Wikidata SPARQL query getting academic workshops based on series number",
+        "query": f"""
+select ?Wikidata ?number
+where {{
+  ?proceedings wdt:P179 wd:Q27230297.
+  ?proceedings p:P179 ?ceur.
+  ?ceur pq:P478 ?number.
+  ?proceedings wdt:P4745 ?Wikidata.
+  values ?number {{{' '.join(workshop_numbers)}}}
+}}
+"""
+    }
+    endpoint_url = "https://query.wikidata.org/sparql"
+    endpoint = SPARQL(endpoint_url)
+    query = Query(**workshop_query)
+
+    try:
+        lod = endpoint.queryAsListOfDicts(query.query)
+        df = pd.DataFrame(lod)
+        df = df.rename(columns={"number": "Ceur-WS"})
+        df.to_csv(store_path, index=False)
+
+        return df
+    except Exception as ex:
+        print(f"{query.title} at {endpoint_url} failed: {ex}")
+        return Exception(ex)
+
+
 def get_wikidata_conferences(reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all conferences from Wikidata.
