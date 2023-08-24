@@ -9,11 +9,12 @@ from colocation.cache_manager import JsonCacheManager
 from colocation.extractor import ColocationExtractor, ExtractionProcessor
 from colocation.matcher import Matcher
 from colocation.neo4j_manager import Neo4jManager
+from colocation.values import Constants
 import pandas as pd
 import argparse
 
-MATCH_THREASHOLD = 0.7
-LINK_THREASHOLD = 3
+MATCH_THREASHOLD = Constants.MATCH_THREASHOLD
+LINK_THREASHOLD = Constants.LINK_THREASHOLD
 
 if __name__ == "__main__":
 

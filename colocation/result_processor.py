@@ -7,6 +7,7 @@ Handles different types of results (TODO) and manages result import into wikidat
 
 from typing import Literal, List, Tuple
 from .cache_manager import JsonCacheManager
+from .wikidata_integrator import WikidataWriter
 
 
 class ResultProcessor():
@@ -15,15 +16,19 @@ class ResultProcessor():
     and input surefire cases into wikidata.
     """
 
-    def __init__(self, wikibase_instance: Literal["https://www.wikidata.org/", "https://test.wikidata.org"]):
+    def __init__(self,
+                 wikibase_instance: Literal["https://www.wikidata.org/", "https://test.wikidata.org"],
+                 write: bool = False):
         """
         Constructor.
 
         Args:
             wikibase_instance(str): wikibase instance to add items to, whether it be the real one or one for testing.
+            write(bool): if yes, actually write the result to the wikibase instance given.
         """
         self.wikibase_instance = wikibase_instance
         self.result_loader = JsonCacheManager(base_url="", base_folder="results")
+        self.write = write
 
     def get_event_conference_pairs(self, result_name: str) -> List[Tuple[str, str]]:
         """
@@ -46,3 +51,22 @@ class ResultProcessor():
             for volume in lod for ceur in volume["ceur"]["Wikidata"]
         ]
         return res
+
+    def write_result_to_wikidata(self, result_name: str) -> List[str]:
+        """
+        Write the co-located attribute for the workshop conference pairs into Wikidata as is
+        given by the specified result json file.
+
+        Args:
+            result_name(str): name of the json file to get the co-location pairs from.
+
+        Returns:
+            list(str): list of workshop item ids for whom the co-located attribute was written.
+        """
+        result_pairs = self.get_event_conference_pairs(result_name=result_name)
+        wbi = WikidataWriter(baseurl=self.wikibase_instance, write=self.write)
+
+        wbi.loginWithCredentials()
+        written = wbi.write_colocated_attributes(result_pairs=result_pairs)
+
+        return written
