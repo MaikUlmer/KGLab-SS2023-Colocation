@@ -4,18 +4,20 @@ Created on 2023-04-21
 '''
 import pandas as pd
 import numpy as np
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from typing import Union, Callable, List, Dict
-from .extractor import matchtypes
-from .dataloaders.dblp_loader import (get_dblp_workshops, verify_dblp_uris, verify_dblp_events,
+from typing import Union, Callable, List, Dict, Literal
+from .extractor import matchtypes, TitleExtractor
+from .dataloaders.dblp_loader import (get_dblp_workshops, get_dblp_conferences, verify_dblp_uris, verify_dblp_events,
                                       dblp_events_to_proceedings, dblp_proceedings_to_events)
 from .dataloaders.wikidata_loader import get_wikidata_dblp_info
+from .cache_manager import CsvCacheManager
 
 
 class Matcher:
     """
-    match different types of events
+    match and link different types of events
     """
 
     def __init__(self, types_to_match: Union[list, None] = None):
@@ -26,9 +28,46 @@ class Matcher:
             types_to_match(list|None): list of matchtypes if only a subset of the possible types should be matched
         """
         self.matchtypes = types_to_match if types_to_match else matchtypes
+        self.dblp_conferences = None
+        self.cacher = CsvCacheManager(base_folder="matches")
 
-    @staticmethod
-    def match_same_type(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    def match_dataframes_with_title_extract(self, df1: pd.DataFrame, df2: pd.DataFrame, threshold: float,
+                                            reload: bool = False, save_name: str = "placeholder",
+                                            to_extract: List[Literal[1, 2]] = []) -> pd.DataFrame:
+        """
+        Matches events of the same type, so conferences with conferences and
+        workshops with workshops requiring df1 and df2 to have the columns
+        short, title, countryISO3, month, year.
+        Additionally gives the to_extract parameter. Title extraction will be applied to the
+        dataframes given here before matching is performed.
+
+        Args:
+            df1(pandas.DataFrame): dataframe with one side of the events.
+            df2(pandas.DataFrame): dataframe with the matching target.
+            threshold(float): threshold value when titles should be seen as similar.
+            reload(bool): whether to force reload match if cached version exists.
+            save_name(str): name of the cached file.
+            to_extract(list(int)): list of DataFrame indices on which to perform title extraction.
+        Returns:
+            pandas.DataFrame: DataFrame that holds the pairs that are matched to be the same type
+        """
+        if not reload:
+            cache = self.cacher.load_csv(save_name)
+            if cache is not None:
+                return cache
+
+        extractor = TitleExtractor()
+        df1 = extractor.extract_attributes(df1) if 1 in to_extract else df1
+        df2 = extractor.extract_attributes(df2) if 2 in to_extract else df2
+
+        matchres = self.match_dataframes(df1, df2, threshold, reload, save_name)
+
+        if save_name != "placeholder":
+            self.cacher.store_csv(save_name, matchres)
+        return matchres
+
+    def match_dataframes(self, df1: pd.DataFrame, df2: pd.DataFrame, threshold: float,
+                         reload: bool = False, save_name: str = "placeholder") -> pd.DataFrame:
         """
         Matches events of the same type, so conferences with conferences and
         workshops with workshops requiring df1 and df2 to have the columns
@@ -37,10 +76,43 @@ class Matcher:
         Args:
             df1(pandas.DataFrame): dataframe with one side of the events.
             df2(pandas.DataFrame): dataframe with the matching target.
+            threshold(float): threshold value when titles should be seen as similar.
+            reload(bool): whether to force reload match if cached version exists.
+            save_name(str): name of the cached file.
         Returns:
             pandas.DataFrame: DataFrame that holds the pairs that are matched to be the same type
         """
-        return NotImplementedError()
+        if not reload:
+            cache = self.cacher.load_csv(save_name)
+            if cache is not None:
+                return cache
+
+        proper_matchtypes = self.matchtypes
+        dummy_type = "title"
+
+        self.matchtypes = [dummy_type]
+
+        def df1_yielder(matchtype: str) -> pd.DataFrame:
+            return df1
+
+        def dummy_deleter(key: str, remaining: list) -> None:
+            pass
+
+        matchres = self.match_extract(
+            extract_function=df1_yielder,
+            remove_function=dummy_deleter,
+            remove_key=dummy_type,
+            conferences=df2,
+            threshold=threshold,
+            add_colocated_attribute=False
+        )
+        matchres = matchres[matchres["C.title"].notna()]
+        matchres = matchres[matchres["W.title"].notna()]
+
+        self.matchtypes = proper_matchtypes
+        if save_name != "placeholder":
+            self.cacher.store_csv(save_name, matchres)
+        return matchres
 
     @staticmethod
     def fuzzy_title_matching(workshops: pd.DataFrame,
@@ -81,6 +153,10 @@ class Matcher:
         w = workshops.copy()
         c = conferences.copy()
 
+        # reset the index of the dataframes in case they have been modified before
+        w = w.reset_index(drop=True)
+        c = c.reset_index(drop=True)
+
         # mark found matches
         w["W.partner"] = np.nan
         c["C.partner"] = np.nan
@@ -92,6 +168,10 @@ class Matcher:
 
             if (pd.notna(workshop["W.year"]) and pd.notna(conference["C.year"]) and
                     int(workshop["W.year"]) == int(conference["C.year"])):
+
+                # check whether conference has already matched against another workshop
+                if pd.notna(a := c.at[match[1] - len_work, "C.partner"]):
+                    num = a
                 w.at[match[0], "W.partner"] = num
                 c.at[match[1] - len_work, "C.partner"] = num
 
@@ -114,7 +194,9 @@ class Matcher:
 
     def match_extract(self, extract_function: Callable[[str], pd.DataFrame],
                       remove_function: Callable[[str, list], None], remove_key: str,
-                      conferences: pd.DataFrame, threshold: float) -> pd.DataFrame:
+                      conferences: pd.DataFrame, threshold: float,
+                      add_colocated_attribute: bool = True,
+                      reload: bool = False, save_name: str = "placeholder") -> pd.DataFrame:
         """
         Matches the extract found from worshops using the iterative matching process
         to the given conferences.
@@ -128,10 +210,18 @@ class Matcher:
                              values with which to call the remove_function
             conferences(pandas.DataFrame): Conferences with matchable attributes. Required
             to have the columns short, title, locations, month, year to match against.
-            threshold(float): threshold value when titles should be seen as similar by fuzzy matching
+            threshold(float): threshold value when titles should be seen as similar by fuzzy matching.
+            add_colocated_attribute(bool): flag to specify whether the colocated entry should be added as the
+            second highest matching priority.
+            reload(bool): whether to force reload match if cached version exists.
+            save_name(str): name of the cached file.
         Returns:
             pandas.DataFrame: DataFrame that holds workshops and the conferences that they have matched with
         """
+        if not reload:
+            cache = self.cacher.load_csv(save_name)
+            if cache is not None:
+                return cache
 
         # rename columns to control join operations
         conf = conferences.rename(columns={old: f"C.{old}" for old in conferences.columns})
@@ -144,7 +234,8 @@ class Matcher:
         res = pd.DataFrame(columns=list(work.columns).extend(list(conf.columns)))
 
         iterative_match_list = self.matchtypes
-        iterative_match_list.insert(1, "colocated")
+        if add_colocated_attribute:
+            iterative_match_list.insert(1, "colocated")
         for match_type in iterative_match_list:
 
             # first work DataFrame is initialized before the loop
@@ -185,29 +276,50 @@ class Matcher:
             to_remove = list(new[f"W.{remove_key}"])
             remove_function(remove_key, to_remove)
 
+        if save_name != "placeholder":
+            self.cacher.store_csv(save_name, res)
         return res
 
-    @staticmethod
-    def link_workshops_dblp_conferences(workshops: List[Dict], number_key: str = "number") -> pd.DataFrame:
+    def link_workshops_dblp_conferences(self, workshops: List[Dict], number_key: str = "number",
+                                        query_name: str = "volumes", reload: bool = False) -> pd.DataFrame:
         """
         Uses the additional info generated by dblp sparql queries to link workshops with conferences.
 
         Args:
             workshops(list(dict)): all Ceur-WS workshops as lod.
             number_key(str): key to access the Ceur-WS volume number in a given dict.
+            query_name(str): name of the workshop query to cache different contexts.
+            reload(bool): whether to force reload the workshop query
         Returns:
             pandas.DataFrame: DataFrame that holds workshops and the conferences that they have linked with
-                              with the columns 'conference' and 'dblp_id'
+                              with the key columns number_key and 'conference_guess'
         """
         numbers = [workshop[number_key] for workshop in workshops]
-        link_df = get_dblp_workshops(numbers, "volumes")
+        link_df = get_dblp_workshops(numbers, number_key=number_key, name=query_name, reload=reload)
 
         # the important factors now are the conference_guess and the workshops
         # now we only need to eliminate wrong guesses
 
-        link_df = link_df[
-            verify_dblp_uris(link_df["conference_guess"])
-        ]
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
+        conference_info = conference_info.rename(
+            columns={old: f"C.{old}" for old in conference_info.columns})
+        conference_info = conference_info.rename(
+            columns={"C.volume": "v"}
+        )
+
+        # link_df = link_df[
+        #     verify_dblp_uris(link_df["conference_guess"])
+        # ]
+
+        link_df = link_df.rename(
+            columns={old: f"W.{old}" if old == number_key else f"C.{old}" for old in link_df.columns}
+        )
+
+        link_df = link_df.merge(conference_info, left_on="C.conference_guess", right_on="v")
+        link_df = link_df.drop(columns="v")
+        link_df = link_df.astype({f"W.{number_key}": int})
 
         return link_df
 
@@ -219,8 +331,11 @@ class Matcher:
 
         Args:
             conference_ids(list(str)): wikidata ids of the form 'Q87055069' of conferences to link between sources.
+            name(str): Argument to pass to sparql query cacher to identify already performed query.
+            reload(bool): Argument to pass to sparql query cacher whether to force reload even if named query is cached.
         Returns:
             pandas.DataFrame: DataFrame that holds the conference pairs that were successfully linked.
+                              The key for wikidata is 'conference' and for dblp 'dblp_id'.
         """
         wikidata_conferences = get_wikidata_dblp_info(conference_ids, name, reload)
 
@@ -270,9 +385,13 @@ class Matcher:
             dblp_events_to_proceedings(wikidata_conferences[unknown]["uri"])
         )
 
+        # remove all entries that are not valid uris
+        wikidata_conferences = wikidata_conferences[
+            verify_dblp_uris(wikidata_conferences["dblp_id"])
+        ]
+
         # step 2: remember additional info for wikidata
-        # here we should verify our results. we do not need to do so for the linking, because when we
-        # input the data into Neo4j, we will use the conference query to get more information
+        # here we should verify each of our results
 
         # the uri may supply the dblp_event the most accurately
         wikidata_conferences["dblp_event_supplement"] = (
@@ -294,11 +413,9 @@ class Matcher:
             ]
         )
 
-        # now supply the the dblp proceedings and verify them
+        # now supply the the already verified dblp proceedings
         wikidata_conferences["dblp_proceedings_supplement"] = (
-            wikidata_conferences["dblp_id"][
-                verify_dblp_uris(wikidata_conferences["dblp_id"])
-            ]
+            wikidata_conferences["dblp_id"]
         )
 
         # we do however only need to supply info for missing info:
@@ -311,6 +428,56 @@ class Matcher:
         # save the supplied info
         self.wikidata_supplement = wikidata_conferences[
             ["conference", "proc", "dblp_event_supplement", "dblp_proceedings_supplement"]]
+        self.cacher.store_csv("Wikidata_dblp_supplement", wikidata_conferences)
+
+        # enrich the result using the additional info from the conference query
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
+
+        conference_info = conference_info.rename(
+            columns={old: f"C.{old}" for old in conference_info.columns})
+
+        wikidata_conferences = wikidata_conferences.rename(
+            columns={old: f"W.{old}" for old in wikidata_conferences.columns})
+        wikidata_conferences = wikidata_conferences.rename(
+            columns={old: f"C.{old[2:]}" for old in ["W.dblp_event", "W.dblp_proceedings", "W.uri", "W.dblp_id"]})
+
+        wikidata_conferences = wikidata_conferences.merge(conference_info, how="inner",
+                                                          left_on="C.dblp_id", right_on="C.volume")
 
         # return the information that is important for the Neo4j import
-        return wikidata_conferences[["conference", "dblp_id"]]
+        cols = ["W.conference", "C.dblp_id"]
+        cols.extend([col for col in list(conference_info.columns) if col != "C.volume"])
+        return wikidata_conferences[cols]
+
+    def link_dblp_split_proceedings(self, potential_virtual_nodes: pd.Series, reload: bool = False) -> pd.DataFrame:
+        """
+        Detects the split proceedings pattern in the ids of the dblp conference proceedings
+        and produces a dataframe with the real proceedings linked to the virtual ones.
+
+        Args:
+            reload(bool): Argument to pass to sparql query cacher whether to force reload even if named query is cached.
+            potential_virtual_nodes(pandas.Series): Series of dblp uris which includes the uris of the virtual
+            nodes for which the links to actual proceedings should be produced.
+        Returns:
+            pandas.DataFrame: DataFrame that holds the conference pairs that were successfully linked.
+                              The keys are 'conference' and 'virtual'.
+        """
+        self.dblp_conferences = (
+            self.dblp_conferences if self.dblp_conferences is not None else get_dblp_conferences(reload))
+        conference_info = self.dblp_conferences.copy()
+
+        split_regex = re.compile("-[0-9]+$")
+        conference_info = conference_info[conference_info["volume"].str.contains(split_regex, na=False, regex=True)]
+        conference_info["virtual"] = conference_info["volume"].map(lambda x: re.sub(split_regex, '', x))
+
+        # retain only those links where the virtual nodes are present
+        potential_virtual_nodes.name = "potential"
+        conference_info = conference_info.merge(potential_virtual_nodes, left_on="virtual", right_on="potential")
+        conference_info = conference_info.drop(columns="potential")
+
+        conference_info = conference_info.rename(
+            columns={"volume": "W.conference", "virtual": "C.virtual", "title": "C.title"}
+        )
+        return conference_info[["W.conference", "C.virtual", "C.title"]]

@@ -3,13 +3,14 @@ import re
 import pandas as pd
 import spacy
 import country_converter as coco
+from typing import List, Dict
 
 
-matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
+matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "part", "affiliated", "at"]
 matchregexes = {}
 
 matchregexes[matchtypes[0]] = re.compile(
-    "(?:(?:co-located|colocated) with) (.*)"
+    "(?:(?:co-located|colocated|collocated) with) (.*)"
 )
 matchregexes[matchtypes[1]] = re.compile(
     "(?:hosted by )(.*)"
@@ -21,10 +22,16 @@ matchregexes[matchtypes[3]] = re.compile(
     "(?:in conjunction with )(.*)"
 )
 matchregexes[matchtypes[4]] = re.compile(
-    "(\w* @ .*)"
+    "(?:\w* @ )(.*)"
 )
 matchregexes[matchtypes[5]] = re.compile(
-    "(\w* at .*)"
+    "(?:part of )(.*)"
+)
+matchregexes[matchtypes[6]] = re.compile(
+    "(?:affiliated (?:with|to) )(.*)"
+)
+matchregexes[matchtypes[7]] = re.compile(
+    "(?:\w* at )(.*)"
 )
 
 
@@ -33,7 +40,7 @@ class ColocationExtractor():
     Given a list of dicts, searches for "co-located" information.
     """
 
-    def __init__(self, volumes_lod: list,
+    def __init__(self, volumes_lod: List[Dict],
                  proc_provider: JsonCacheManager = JsonCacheManager(),
                  extra_provider: JsonCacheManager =
                  JsonCacheManager(base_url="http://ceurspt.wikidata.dbis.rwth-aachen.de")):
@@ -48,7 +55,7 @@ class ColocationExtractor():
             extra_provider(JsonCacheManager): loader for volume information not present in proc_provider,
                 should only be changed for test purposes.
         """
-        self.matchtypes = ["coloc", "hosted", "aff", "conjunction", "@2", "at"]
+        self.matchtypes = matchtypes
 
         procs = "proceedings"
 
@@ -59,7 +66,7 @@ class ColocationExtractor():
         self.volumes_lod = volumes_lod
         self.extract_info()
 
-    def get_colocation_info(self):
+    def get_colocation_info(self) -> List[Dict]:
         """
         Returns:
             list: the list of dicts containing the extracted colocation information
@@ -67,33 +74,42 @@ class ColocationExtractor():
         """
         return self.colocation_lod
 
+    def get_colocation_volume_numbers(self) -> List[int]:
+        """
+        Returns:
+            list: the list of dicts containing the volume numbers of all volumes
+                  for which this instance has extracted information.
+        """
+        return [workshop["number"] for workshop in self.colocation_lod]
+
     def find_wikidata_event(self):
         """
         Given extracted info for certain volumes, supplies these with
         their corresponding wikidata uri.
         """
         colocation_lod = self.colocation_lod
-        proceedings_map = {}
         missing_events = []
 
-        for proc in self.ceurWSProcs:
-            # Map volume number to wikidata uri for available volumes
-            proceedings_map[proc["sVolume"]] = proc["event"]
+        # Map volume number to wikidata uri for available volumes
+        event_map = {proc["sVolume"]: proc["event"] for proc in self.ceurWSProcs if proc["event"]}
+        proceedings_map = {proc["sVolume"]: proc["item"] for proc in self.ceurWSProcs}
 
         for volume in colocation_lod:
-            if volume["number"] in proceedings_map.keys():
-                uri = str(proceedings_map[volume["number"]]).split("|")
+            if volume["number"] in event_map.keys():
+                uri = str(event_map[volume["number"]]).split("|")
             else:
                 vol_name = f'Vol-{volume["number"]}'
                 vol = self.extra_provider.load_lod(vol_name)
 
-                if "wd.event" in vol.keys():
+                if "wd.event" in vol.keys() and vol["wd.event"]:
                     uri = str(vol["wd.event"]).split("|")
                 else:
                     uri = None
                     missing_events.append(volume)
 
             volume["wikidata_event"] = uri
+            volume["wikidata_proceedings"] = (
+                proceedings_map[volume["number"]] if volume["number"] in proceedings_map else "")
 
         self.missing_events = missing_events
 
@@ -140,14 +156,15 @@ class ExtractionProcessor():
     time and place of the conference in question to use in incremental matching.
     """
 
-    def __init__(self, extract_lod: list):
+    def __init__(self, extract_lod: List[Dict]):
         """"
         constructor
         initialises the events from which additional information is required
         Args:
             extract_lod(list(dict)): extract of the events of interest
         """
-        self.remaining_events = extract_lod
+        # we need a shallow copy to reuse the lod elsewhere
+        self.remaining_events = extract_lod.copy()
 
         self.nlp = spacy.load("en_core_web_sm")
         self.year_regex = re.compile("[0-9]{4}")
@@ -169,7 +186,7 @@ class ExtractionProcessor():
     #     for index in sorted(indices, reverse=True):
     #         del self.remaining_events[index]
 
-    def remove_events_by_keys(self, number_key: str, keys: list):
+    def remove_events_by_keys(self, number_key: str, keys: List[int]):
         """
         Given a list of numbers, removes the events with corresponding number from the
         internal remaining events lod.
@@ -236,7 +253,7 @@ class ExtractionProcessor():
                 extractList.append(extract)
         return extractList
 
-    def extract_times(self, texts: list):
+    def extract_times(self, texts: List[str]):
         """
         Extract times from a list of texts using nlp
         """
@@ -246,7 +263,7 @@ class ExtractionProcessor():
             times.extend([entity.text for entity in doc.ents if entity.label_ == "DATE"])
         return times
 
-    def extract_location(self, texts: list):
+    def extract_location(self, texts: List[str]):
         """
         Extract locations from a list of texts using nlp
         """
@@ -256,7 +273,7 @@ class ExtractionProcessor():
             locs.extend([entity.text for entity in doc.ents if entity.label_ == "GPE"])
         return locs
 
-    def match_month(self, texts: list):
+    def match_month(self, texts: List[str]):
         """
         Extract a single month from a list of texts using regex
         """
@@ -265,7 +282,7 @@ class ExtractionProcessor():
             matched = re.search(self.month_regex, text)
             if matched: return matched[0]
 
-    def match_year(self, texts: list):
+    def match_year(self, texts: List[str]):
         """
         Extract a single year from a list of texts using regex
         """
@@ -365,3 +382,53 @@ class ExtractionProcessor():
             return pd.DataFrame(columns=["number", "title", "loctime", "month", "year", "countryISO3", "short"])
         return self.extract_time_and_place(
             pd.DataFrame.from_dict(title_split), keyword)
+
+
+class TitleExtractor():
+    """
+    Class to extract attributes about event(proceedings) from their title.
+    """
+    def __init__(self):
+        # self.processor = ExtractionProcessor(dict())  # need an instance to use the methods
+        self.keyword = "title_copy"
+
+    # def extract_short(self, events: pd.DataFrame) -> pd.DataFrame:
+    #     """
+    #     Helper function.
+    #     Given the events with a column 'title', extract the short title.
+    #     Args:
+    #         events(pandas.DataFrame): DataFrame of interest containing a 'title' column
+    #     Returns:
+    #         pd.DataFrame: events with additional info 'short'.
+    #     """
+
+    def extract_attributes(self, events: pd.DataFrame) -> pd.DataFrame:
+        """
+        Given the events with a column 'title', extract matching attributes.
+        Args:
+            events(pandas.DataFrame): DataFrame of interest containing a 'title' column
+        Returns:
+            pd.DataFrame: events with additional info 'month', 'year', 'countryISO3', 'short'.
+        """
+        events = events.copy()  # suppress pandas warnings
+        number = "number" in events.columns
+        events["loctime"] = None
+        if not number:
+            events["number"] = -1
+
+        events[self.keyword] = events["title"].map(lambda x: [x])  # put title into list
+        event_lod = events.to_dict(orient='records')
+        processor = ExtractionProcessor(event_lod)
+
+        extract: pd.DataFrame = processor.get_loctime_info(self.keyword)
+        # we will take the title from the original events
+        extract = extract.drop(columns=["title", "dates"])
+
+        events = events.drop(columns=["loctime", self.keyword])
+        if not number:
+            extract = extract.drop(columns="number")
+            events = events.drop(columns="number")
+
+        extract = events.join(extract)
+
+        return extract

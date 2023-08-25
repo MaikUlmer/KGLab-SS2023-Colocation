@@ -1,10 +1,11 @@
 #!/bin/bash
 # WF 2023-04-21
 # install
-pip install orjson
-pip install scikit-learn
-pip install pandas
-pip install country-converter
-pip install pylodstorage
-pip install spacy
+# pip install orjson
+# pip install scikit-learn
+# pip install pandas
+# pip install country-converter
+# pip install pylodstorage
+# pip install py2neo
+# pip install spacy
 python -m spacy download en_core_web_sm

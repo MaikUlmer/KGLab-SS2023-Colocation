@@ -3,13 +3,14 @@ Created on 2023-07-28
 @author: nm
 '''
 
+from colocation.cache_manager import CsvCacheManager
 from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
-import os
 import pandas as pd
-from pathlib import Path
 from typing import List, Dict
 import re
+
+dblp_cacher = CsvCacheManager(base_folder="dblp")
 
 
 def query_dblp(query) -> List[Dict]:
@@ -48,7 +49,7 @@ def guess_dblp_conference(workshop_df: pd.DataFrame) -> pd.DataFrame:
     """
 
     # write regex to match the string after the year number right before the end
-    regex = re.compile("[a-zA-Z]*$")
+    regex = re.compile("(?<=[0-9])[a-zA-Z].*$")  # delete everthing beginning with the first letter after the year
 
     workshop_df["conference_guess"] = workshop_df["volume"].map(lambda x: re.sub(regex, '', x))
 
@@ -130,7 +131,8 @@ where {{
     return truth_column
 
 
-def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = False) -> pd.DataFrame:
+def get_dblp_workshops(workshop_numbers: List[int], number_key: str = "number",
+                       name: str = "volumes", reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all Ceur-WS workshops from the given list of ids from Dblp.
     Cache the result using the specified name and reuse, unless reload is specified.
@@ -138,18 +140,17 @@ def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = Fa
     Args:
         workshop_numbers(list(int)) : list of the numbers for the ceur-ws workshops.
         name(str) : name to differentiate queries for different purposes.
+        number_key(str): name the number attribute should have
         reload(bool) : whether to force reload the conferences instead of taking from cache.
 
     Returns:
         pandas.DataFrame: DataFrame containing relevant information about the Ceur-WS volumes,
                           including guess for proceedings of the co-located conference.
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + f"/dblp_workshops_{name}.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    file_name = f"workshops-{name}"
+    df = dblp_cacher.load_csv(file_name)
+    if not reload and df is not None:
+        return df
 
     workshop_query = {
         "lang": "sparql",
@@ -160,12 +161,12 @@ def get_dblp_workshops(workshop_numbers: List[int], name: str, reload: bool = Fa
 PREFIX datacite: <http://purl.org/spar/datacite/>
 PREFIX dblp: <https://dblp.org/rdf/schema#>
 PREFIX litre: <http://purl.org/spar/literal/>
-SELECT ?vol_number ?volume ?dblpid ?urn
+SELECT ?{number_key} ?volume ?dblpid ?urn
 WHERE{{
 ?volume dblp:publishedIn "CEUR Workshop Proceedings" ;
     dblp:publishedInSeries "CEUR Workshop Proceedings" ;
-    dblp:publishedInSeriesVolume ?vol_number.
-    VALUES ?vol_number {{{" ".join([f'"{number}"' for number in workshop_numbers])}}}.  # dblp needs number as string
+    dblp:publishedInSeriesVolume ?{number_key}.
+    VALUES ?{number_key} {{{" ".join([f'"{number}"' for number in workshop_numbers])}}}.  # dblp needs number as string
     ?volume datacite:hasIdentifier ?s.
     ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
         litre:hasLiteralValue ?dblpid ;
@@ -185,7 +186,7 @@ WHERE{{
 
     df = guess_dblp_conference(df)
 
-    df.to_csv(store_path, index=False)
+    dblp_cacher.store_csv(file_name, df)
 
     return df
 
@@ -201,12 +202,10 @@ def get_dblp_conferences(reload: bool = False) -> pd.DataFrame:
     Returns:
         pandas.DataFrame: conferences with columns 'volume', 'event', 'title', 'doi'
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + "/dblp_conferences.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    file_name = "conferences"
+    df = dblp_cacher.load_csv(file_name)
+    if not reload and df is not None:
+        return df
 
     conference_query = {
         "lang": "sparql",
@@ -220,8 +219,8 @@ PREFIX dblp: <https://dblp.org/rdf/schema#>
 select distinct ?volume ?event ?title ?doi
 where {
   ?volume dblp:title ?title.
-  FILTER regex(?title, "^proceeding", "i")
   FILTER regex(?title, "conference", "i")
+  FILTER regex(str(?volume), "conf", "i")
   ?volume datacite:hasIdentifier ?s;
           dblp:listedOnTocPage ?event.
     ?s	datacite:usesIdentifierScheme datacite:dblp-record ;
@@ -239,7 +238,18 @@ where {
     lod = query_dblp(conference_query)
     df = pd.DataFrame(lod)
 
-    df.to_csv(store_path, index=False)
+    # drop workshops
+    df = df[df["title"].map(lambda x: "workshop" not in x.lower())]
+
+    # add virtual collective proceedings for split prceedings
+    split = df[df["volume"].str.contains("-[0-9]+$", na=False, regex=True)]
+    split = split.copy()
+    split["volume"] = split["volume"].map(lambda x: x[0:-2])
+    split.drop_duplicates(subset="volume")
+
+    df = pd.concat([df, split])
+
+    dblp_cacher.store_csv(file_name, df)
 
     return df
 
@@ -258,8 +268,9 @@ def dblp_events_to_proceedings(events: pd.Series) -> pd.Series:
         pandas.Series: event ids replaced with proceedings ids.
     """
     regex = re.compile("[a-zA-Z]*(?=[0-9]{4}$)")
-    events = events.map(lambda event: re.sub("db/", "rec/", event) if event else event)
-    events = events.map(lambda event: re.sub(regex, "", event) if event else event)
+    db = re.compile("db/")
+    events = events.map(lambda event: re.sub(db, "rec/", event) if event else event, na_action='ignore')
+    events = events.map(lambda event: re.sub(regex, "", event) if event else event, na_action='ignore')
 
     return events
 

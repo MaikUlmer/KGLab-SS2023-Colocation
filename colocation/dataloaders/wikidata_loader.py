@@ -3,12 +3,13 @@ Created on 2023-06-09
 @author: nm
 '''
 
+from colocation.cache_manager import CsvCacheManager
 from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
-import os
 import pandas as pd
-from pathlib import Path
 from typing import List, Dict
+
+wikidata_cacher = CsvCacheManager(base_folder="wikidata")
 
 
 def get_workshop_ids_from_lod(lod: List[Dict]) -> List[str]:
@@ -19,8 +20,6 @@ def get_workshop_ids_from_lod(lod: List[Dict]) -> List[str]:
         lod(list(dict)): lod to extract workshop ids from
     """
 
-    # TODO handle wikidata not returning any result for certain ids
-
     found = [dici['wikidata_event'] for dici in lod]
     found = [f for f in found if f is not None]
     found = [event for events in found for event in events]
@@ -28,6 +27,24 @@ def get_workshop_ids_from_lod(lod: List[Dict]) -> List[str]:
     found = [s for s in found if s != "None"]
     found = ["wd:" + s for s in found]
     return found
+
+
+def query_wikidata(query: Dict[str, str]) -> pd.DataFrame:
+    """
+    Runner for wikidata queries given the query string
+    """
+    endpoint_url = "https://query.wikidata.org/sparql"
+    endpoint = SPARQL(endpoint_url)
+    query = Query(**query)
+
+    try:
+        lod = endpoint.queryAsListOfDicts(query.query)
+        df = pd.DataFrame(lod)
+
+        return df
+    except Exception as ex:
+        print(f"{query.title} at {endpoint_url} failed: {ex}")
+        return Exception(ex)
 
 
 def get_wikidata_workshops(workshop_ids: List[str], name: str, reload: bool = False) -> pd.DataFrame:
@@ -40,12 +57,10 @@ def get_wikidata_workshops(workshop_ids: List[str], name: str, reload: bool = Fa
         name(str) : name to differentiate queries for different purposes
         reload(bool) : whether to force reload the conferences instead of taking from cache
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + f"/wikidata_workshops_{name}.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    name = f"workshops_{name}"
+    df = wikidata_cacher.load_csv(name)
+    if not reload and df is not None:
+        return df
 
     workshop_query = {
         "lang": "sparql",
@@ -72,21 +87,53 @@ WHERE
 }}
 """
     }
-    endpoint_url = "https://query.wikidata.org/sparql"
-    endpoint = SPARQL(endpoint_url)
-    query = Query(**workshop_query)
+    df = query_wikidata(workshop_query)
+    renaming = {"workshopLabel": "title", "locationLabel": "locations"}
+    df = format_frame(df, renaming)
+    wikidata_cacher.store_csv(name, df)
 
-    try:
-        lod = endpoint.queryAsListOfDicts(query.query)
-        df = pd.DataFrame(lod)
-        renaming = {"workshopLabel": "title", "locationLabel": "locations"}
-        df = format_frame(df, renaming)
-        df.to_csv(store_path, index=False)
+    return df
 
+
+def get_wikidata_workshops_by_number(workshop_numbers: List[int], name: str, reload: bool = False) -> pd.DataFrame:
+    """
+    Use a SPARQL query to get as many workshops from the given list of ids as possible.
+    Cache the result using the specified name and reuse, unless reload is specified.
+
+    Args:
+        workshop_ids(list(str)) : list of the CEUR-WS series number of the workshops
+        name(str) : name to differentiate queries for different purposes
+        reload(bool) : whether to force reload the workshops instead of taking from cache
+    """
+    df = wikidata_cacher.load_csv(name)
+    if not reload and df is not None:
         return df
-    except Exception as ex:
-        print(f"{query.title} at {endpoint_url} failed: {ex}")
-        return Exception(ex)
+
+    workshop_numbers = [f'"{num}"' for num in workshop_numbers]
+
+    workshop_query = {
+        "lang": "sparql",
+        "name": "WS",
+        "title": "Workshops",
+        "description": "Wikidata SPARQL query getting academic workshops based on series number",
+        "query": f"""
+select ?number ?Wikidata
+where {{
+  ?proceedings wdt:P179 wd:Q27230297.
+  ?proceedings p:P179 ?ceur.
+  ?ceur pq:P478 ?number.
+  ?proceedings wdt:P4745 ?Wikidata.
+  values ?number {{{' '.join(workshop_numbers)}}}
+}}
+"""
+    }
+
+    df = query_wikidata(workshop_query)
+    df = df.astype({"number": int})
+    df = df.rename(columns={"number": "Ceur-WS"})
+    wikidata_cacher.store_csv(name, df)
+
+    return df
 
 
 def get_wikidata_conferences(reload: bool = False) -> pd.DataFrame:
@@ -97,12 +144,10 @@ def get_wikidata_conferences(reload: bool = False) -> pd.DataFrame:
     Args:
         reload(bool) : whether to force reload the conferences instead of taking from cache
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + "/wikidata_conferences.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    name = "conferences"
+    df = wikidata_cacher.load_csv(name)
+    if not reload and df is not None:
+        return df
 
     conference_query = {
         "lang": "sparql",
@@ -126,20 +171,11 @@ WHERE
 }
 """
     }
-    endpoint_url = "https://query.wikidata.org/sparql"
-    endpoint = SPARQL(endpoint_url)
-    query = Query(**conference_query)
 
-    try:
-        lod = endpoint.queryAsListOfDicts(query.query)
-    except Exception as ex:
-        print(f"{query.title} at {endpoint_url} failed: {str(ex)}")
-        raise ex
-
-    df = pd.DataFrame(lod)
+    df = query_wikidata(conference_query)
     renaming = {"conferenceLabel": "title"}
     df = format_frame(df, renaming)
-    df.to_csv(store_path, index=False)
+    wikidata_cacher.store_csv(name, df)
 
     return df
 
@@ -153,13 +189,6 @@ def format_frame(df: pd.DataFrame, renaming: Dict[str, str]) -> pd.DataFrame:
         renaming(dict[str,str]): columns will be renamed after the given scheme
     """
     df = df.rename(columns=renaming)
-
-    def time_extraction(text: str, index: int):
-        """
-        Extract the year or month from the loctime attribute
-        """
-        if not text: return None
-        else: return text.split('-')[index]
 
     df.loc[pd.isna(df['timepoint']), "timepoint"] = df["start"]
     df.loc[pd.isna(df['timepoint']), "timepoint"] = df["end"]
@@ -185,12 +214,11 @@ def get_wikidata_dblp_info(conference_ids: List[str], name: str, reload: bool = 
         pandas.DataFrame: successfully connected elements with the columns
             'conference', 'proc', 'dblp_event', 'dblp_proceedings', 'uri'
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + f"/wikidata_dblp_{name}.csv"
 
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    name = f"dblp_{name}"
+    df = wikidata_cacher.load_csv(name)
+    if not reload and df is not None:
+        return df
 
     conference_ids = ["wd:" + c for c in conference_ids]
 
@@ -219,19 +247,9 @@ WHERE
 Group by ?conference
 """
     }
-    endpoint_url = "https://query.wikidata.org/sparql"
-    endpoint = SPARQL(endpoint_url)
-    query = Query(**dblp_query)
 
-    try:
-        lod = endpoint.queryAsListOfDicts(query.query)
-    except Exception as ex:
-        print(f"{query.title} at {endpoint_url} failed: {str(ex)}")
-        raise ex
-
-    df = pd.DataFrame(lod)
-    # ensure the dataframe has the correct signature
+    df = query_wikidata(dblp_query)
     df = df.reindex(["conference", "proc", "dblp_event", "dblp_proceedings", "uri"], axis=1)
-    df.to_csv(store_path, index=False)
+    wikidata_cacher.store_csv(name, df)
 
     return df
