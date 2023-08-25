@@ -295,7 +295,7 @@ class Matcher:
                               with the key columns number_key and 'conference_guess'
         """
         numbers = [workshop[number_key] for workshop in workshops]
-        link_df = get_dblp_workshops(numbers, query_name, number_key=number_key, reload=reload)
+        link_df = get_dblp_workshops(numbers, number_key=number_key, name=query_name, reload=reload)
 
         # the important factors now are the conference_guess and the workshops
         # now we only need to eliminate wrong guesses

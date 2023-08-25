@@ -3,13 +3,14 @@ Created on 2023-07-28
 @author: nm
 '''
 
+from colocation.cache_manager import CsvCacheManager
 from lodstorage.query import Query
 from lodstorage.sparql import SPARQL
-import os
 import pandas as pd
-from pathlib import Path
 from typing import List, Dict
 import re
+
+dblp_cacher = CsvCacheManager(base_folder="dblp")
 
 
 def query_dblp(query) -> List[Dict]:
@@ -130,8 +131,8 @@ where {{
     return truth_column
 
 
-def get_dblp_workshops(workshop_numbers: List[int], name: str, number_key: str = "number",
-                       reload: bool = False) -> pd.DataFrame:
+def get_dblp_workshops(workshop_numbers: List[int], number_key: str = "number",
+                       name: str = "volumes", reload: bool = False) -> pd.DataFrame:
     """
     Use a SPARQL query to get all Ceur-WS workshops from the given list of ids from Dblp.
     Cache the result using the specified name and reuse, unless reload is specified.
@@ -146,12 +147,10 @@ def get_dblp_workshops(workshop_numbers: List[int], name: str, number_key: str =
         pandas.DataFrame: DataFrame containing relevant information about the Ceur-WS volumes,
                           including guess for proceedings of the co-located conference.
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + f"/dblp_workshops_{name}.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    file_name = f"workshops-{name}"
+    df = dblp_cacher.load_csv(file_name)
+    if not reload and df is not None:
+        return df
 
     workshop_query = {
         "lang": "sparql",
@@ -187,7 +186,7 @@ WHERE{{
 
     df = guess_dblp_conference(df)
 
-    df.to_csv(store_path, index=False)
+    dblp_cacher.store_csv(file_name, df)
 
     return df
 
@@ -203,12 +202,10 @@ def get_dblp_conferences(reload: bool = False) -> pd.DataFrame:
     Returns:
         pandas.DataFrame: conferences with columns 'volume', 'event', 'title', 'doi'
     """
-    root_path = f"{Path.home()}/.ceurws"
-    os.makedirs(root_path, exist_ok=True)
-    store_path = root_path + "/dblp_conferences.csv"
-
-    if os.path.isfile(store_path) and not reload:
-        return pd.read_csv(store_path)
+    file_name = "conferences"
+    df = dblp_cacher.load_csv(file_name)
+    if not reload and df is not None:
+        return df
 
     conference_query = {
         "lang": "sparql",
@@ -252,7 +249,7 @@ where {
 
     df = pd.concat([df, split])
 
-    df.to_csv(store_path, index=False)
+    dblp_cacher.store_csv(file_name, df)
 
     return df
 

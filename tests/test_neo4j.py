@@ -127,7 +127,7 @@ class TestNeo4j(unittest.TestCase):
             }
         ]
         matcher = self.matcher
-        result = matcher.link_workshops_dblp_conferences(workshops, reload=True)
+        result = matcher.link_workshops_dblp_conferences(workshops, query_name="test-neo", reload=True)
 
         neo = Neo4jManager(delete_nodes=True)
         neo.add_matched_nodes(result,

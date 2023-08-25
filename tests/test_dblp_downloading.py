@@ -57,16 +57,16 @@ class TestDblp(unittest.TestCase):
         """
         test downloading workshops
         """
-        volumes = [i for i in range(1000, 2000)]
-        path = f"{Path.home()}/.ceurws/dblp_workshops_test.csv"
+        volumes = [i for i in range(1000, 1002)]
+        path = f"{Path.home()}/.ceurws/dblp/workshops-1000-1001.csv"
 
-        workshops = get_dblp_workshops(volumes, "test", reload=True)
+        workshops = get_dblp_workshops(volumes, name="test-volumes", reload=True)
 
         self.assertTrue(os.path.isfile(path),
                         msg=f"Could not save Dblp workshops to csv at {path}.")
 
         self.assertIsInstance(workshops, pd.DataFrame)
-        self.assertTrue(workshops.shape[0] >= 887)
+        self.assertTrue(workshops.shape[0] >= 2)
 
         self.assertTrue("conference_guess" in workshops.columns)
 

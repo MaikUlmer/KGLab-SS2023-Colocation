@@ -194,4 +194,4 @@ their co-located conference using Wikidata and Dblp as additional datasources."
         print(f"Wrote co-located attribute for {len(res)} workshops.")
     else:
         res = processor.get_event_conference_pairs(file_name)
-        print(f"Would have written co-located attributw for {len(res)} workshops.")
+        print(f"Would have written co-located attribute for {len(res)} workshops.")
