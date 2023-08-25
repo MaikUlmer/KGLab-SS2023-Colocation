@@ -16,5 +16,5 @@ class Constants():
     """
     Constants impacting aspects of the program.
     """
-    MATCH_THREASHOLD = 0.7
+    MATCH_THREASHOLD = 0.45
     LINK_THREASHOLD = 3
