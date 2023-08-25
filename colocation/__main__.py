@@ -10,6 +10,7 @@ from colocation.extractor import ColocationExtractor, ExtractionProcessor
 from colocation.matcher import Matcher
 from colocation.neo4j_manager import Neo4jManager
 from colocation.values import Constants
+from colocation.result_processor import ResultProcessor
 import pandas as pd
 import argparse
 
@@ -27,10 +28,12 @@ if __name__ == "__main__":
         description="Extracts information from Ceur-WS volumes to link workshops to\
 their co-located conference using Wikidata and Dblp as additional datasources."
     )
-    parser.add_argument('-r', '--reload', action='store_true')
+    parser.add_argument('-r', '--reload', action='store_true', help="Force reload cached results.")
+    parser.add_argument('-w', '--write', action='store_true', help="Actually write the updated parameters to Wikidata.")
 
     args = parser.parse_args()
     reload = args.reload
+    write = args.write
 
     ###########################
     # get Ceur-WS information #
@@ -179,3 +182,16 @@ their co-located conference using Wikidata and Dblp as additional datasources."
     print("Serializing results.")
 
     neo.serialize_results()
+
+    ###############################
+    # writing results to Wikidata #
+    ###############################
+
+    processor = ResultProcessor('https://www.wikidata.org/', write=write)
+    file_name = "fully_connected_event_present"
+    if write:
+        res = processor.write_result_to_wikidata(file_name)
+        print(f"Wrote co-located attribute for {len(res)} workshops.")
+    else:
+        res = processor.get_event_conference_pairs(file_name)
+        print(f"Would have written co-located attributw for {len(res)} workshops.")
