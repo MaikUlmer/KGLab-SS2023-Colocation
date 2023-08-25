@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         prog="Ceur-WS Colocation",
-        description="Extracts information from Ceur-WS volumes to link workshops to\
+        description="Extracts information from Ceur-WS volumes to link workshops to \
 their co-located conference using Wikidata and Dblp as additional datasources."
     )
     parser.add_argument('-r', '--reload', action='store_true', help="Force reload cached results.")

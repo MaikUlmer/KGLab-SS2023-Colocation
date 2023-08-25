@@ -101,3 +101,34 @@ Based on these two attribute axes, we generate 8 different output files and can 
 
 ## Writing the definitive results into Wikidata
 The final step entails setting up a bot for Wikidata using [WikibaseIntegrator](https://github.com/LeMyst/WikibaseIntegrator) to automatically update the co-located attribute using the results we have produced previously. Here we err on the side of caution regarding automatic changes, as incorrectly set data can be very hard to identify after the fact.
+
+## Running the project
+### Requirements
+#### Neo4j
+To manage graph data, the client has to run a neo4j instance with exposed ports and with authentication disabled. Consider using the [official docker image](https://hub.docker.com/_/neo4j/) for this purpose.
+
+#### Wikidata Bot config
+To write the result to Wikidata, the client has to have a valid Wikidata (bot) login stored within a config.json file.
+This file should be placed under `$HOME/wikibase-cli/config/config.json` and has the following schema:
+```
+{
+    "lang": "en",
+    "instance": "https://wikidata.org",
+    "credentials": {
+      "https://www.wikidata.org": {
+        "username": "your (bot) username",
+        "password": "your (bot) password"
+      }
+    },
+    "sparql-endpoint": "https://query.wikidata.org/sparql"
+}
+```
+It is strongly advised to not use your actual account credentials, but to create a separate bot password for the ceurWsColocationBot. If you do, you can restrict its privileges to only modify existing pages, as it currently is not capable to automatically create Wikidata entries for presumably missing items.
+
+### Running
+After installing the project and fulfilling the requirements, you can simply run the program using
+```
+python -m colocation
+```
+in the python environment where you installed it.
+For information about the optional arguments the program takes, use the `-h` flag.
