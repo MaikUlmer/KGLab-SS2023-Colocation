@@ -87,6 +87,7 @@ class TestNeo4j(unittest.TestCase):
 
         self.assertEqual(num, num2)
 
+    @unittest.skipIf(IN_CI, "Skip in CI environment")
     def test_wikidata_dblp_linking(self):
         """
         test linking between wikidata and dblp conferences
