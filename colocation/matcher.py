@@ -27,7 +27,7 @@ class Matcher:
         Args:
             types_to_match(list|None): list of matchtypes if only a subset of the possible types should be matched
         """
-        self.matchtypes = types_to_match if types_to_match else matchtypes
+        self.matchtypes = types_to_match.copy() if types_to_match else matchtypes.copy()
         self.dblp_conferences = None
         self.cacher = CsvCacheManager(base_folder="matches")
 
@@ -223,9 +223,13 @@ class Matcher:
             if cache is not None:
                 return cache
 
+        iterative_match_list = self.matchtypes
+        if add_colocated_attribute:
+            iterative_match_list.insert(0, "colocated")
+
         # rename columns to control join operations
         conf = conferences.rename(columns={old: f"C.{old}" for old in conferences.columns})
-        work = extract_function(self.matchtypes[0])
+        work = extract_function(iterative_match_list[0])
         work = work.rename(columns={old: f"W.{old}" for old in work.columns})
 
         if type(conf["C.title"].iloc[0]) == list:
@@ -233,13 +237,10 @@ class Matcher:
 
         res = pd.DataFrame(columns=list(work.columns).extend(list(conf.columns)))
 
-        iterative_match_list = self.matchtypes
-        if add_colocated_attribute:
-            iterative_match_list.insert(1, "colocated")
         for match_type in iterative_match_list:
 
             # first work DataFrame is initialized before the loop
-            if match_type != matchtypes[0]:
+            if match_type != iterative_match_list[0]:
                 work = extract_function(match_type)
                 work = work.rename(columns={old: f"W.{old}" for old in work.columns})
 
