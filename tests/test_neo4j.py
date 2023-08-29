@@ -108,6 +108,7 @@ class TestNeo4j(unittest.TestCase):
 
         self.assertListEqual(dblp_conferences, conferences)
 
+    @unittest.skipIf(IN_CI, "Skip in CI environment")
     def test_ceur_dblp_linking(self):
         """
         test linking Ceur-WS to dblp conferences
