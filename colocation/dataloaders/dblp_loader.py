@@ -49,7 +49,7 @@ def guess_dblp_conference(workshop_df: pd.DataFrame) -> pd.DataFrame:
     """
 
     # write regex to match the string after the year number right before the end
-    regex = re.compile("(?<=[0-9])[a-zA-Z].*$")  # delete everthing beginning with the first letter after the year
+    regex = re.compile("(?<=[0-9]{4})[a-zA-Z].*$")  # delete everthing beginning with the first letter after the year
 
     workshop_df["conference_guess"] = workshop_df["volume"].map(lambda x: re.sub(regex, '', x))
 
